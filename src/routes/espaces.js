@@ -6,7 +6,7 @@ const { exigerConnexion } = require('../auth');
 const { t } = require('../i18n');
 const {
   ROLES_ESPACE, verifierCompte, roleDansEspace, espacesDe,
-  espacePourUtilisateur, nouveauCodeEspace,
+  espacePourUtilisateur, nouveauCodeEspace, espacePersonnel,
 } = require('../metier');
 
 const routeur = express.Router();
@@ -40,6 +40,11 @@ routeur.post('/', (req, res) => {
     return Number(lastInsertRowid);
   })();
   res.status(201).json(espacePourUtilisateur(db.prepare('SELECT * FROM espaces WHERE id = ?').get(id), 'admin'));
+});
+
+// Mode libre : un espace personnel par utilisateur, avec une équipe « Mes réunions ».
+routeur.post('/personnel', (req, res) => {
+  res.json(espacePourUtilisateur(espacePersonnel(req.utilisateur, t(req, 'equipe_perso')), 'admin'));
 });
 
 routeur.get('/:id', (req, res) => {

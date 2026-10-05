@@ -28,6 +28,19 @@ module.exports = function brancherTempsReel(io) {
       socket.join(`classe:${classe.id}`);
     });
 
+    // Messages directs : diffusés à chaque membre de la conversation.
+    socket.on('dm:envoyer', (donnees, ack) => {
+      const repondre = typeof ack === 'function' ? ack : () => {};
+      const { ajouterMessage, estMembre, prevenir } = require('./routes/conversations');
+      const conversationId = Number(donnees?.conversationId);
+      const contenu = String(donnees?.contenu ?? '').trim();
+      if (!contenu || contenu.length > 4000) return repondre({ ok: false, erreur: t(socket, 'message_longueur') });
+      if (!estMembre(conversationId, u.id)) return repondre({ ok: false, erreur: t(socket, 'conversation_introuvable') });
+      const message = ajouterMessage(conversationId, u.id, contenu);
+      prevenir(io, conversationId, 'dm:nouveau', message);
+      repondre({ ok: true });
+    });
+
     // Les messages sont diffusés à toute l'équipe : l'interface signale les canaux non lus.
     socket.on('message:envoyer', (donnees, ack) => {
       const repondre = typeof ack === 'function' ? ack : () => {};

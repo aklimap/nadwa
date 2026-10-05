@@ -5,7 +5,7 @@ const { t } = require('../i18n');
 const {
   roleDansEspace, classeAccessible, estResponsable, classePourUtilisateur, avecEtat,
   nouveauCodeInvitation, nouvelIdReunion, OUVERTURE_AVANT_MIN,
-  creerCanalGeneral, canauxDe, SQL_CANAL, SQL_SEANCE, ajouterInvites,
+  creerCanalGeneral, canauxDe, SQL_CANAL, SQL_SEANCE, ajouterInvites, jetonInvite,
 } = require('../metier');
 
 const routeur = express.Router();
@@ -156,6 +156,7 @@ routeur.post('/:id/seances', (req, res) => {
     INSERT INTO seances (classe_id, titre, debut, duree_min, reunion_id, organisateur_id)
     VALUES (?, ?, ?, ?, ?, ?)`).run(classe.id, titre, debut.toISOString(), duree, nouvelIdReunion(classe.id), req.utilisateur.id);
   const invites = ajouterInvites({ id: lastInsertRowid }, classe.espace_id, req.body?.participants);
+  jetonInvite(lastInsertRowid);
 
   annoncerSeances(req, classe.id, invites);
   res.status(201).json(avecEtat(db.prepare(`${SQL_SEANCE} WHERE s.id = ?`).get(lastInsertRowid)));

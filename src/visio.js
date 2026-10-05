@@ -64,7 +64,7 @@ async function creerReunionBBB(seance, classe, langue) {
  * Renvoie l'URL qui fait entrer l'utilisateur dans la salle de la séance.
  * L'enseignant (ou l'administrateur) entre comme modérateur.
  */
-async function lienVisio({ seance, classe, utilisateur, moderateur, langue = 'en' }) {
+async function lienVisio({ seance, classe, utilisateur, moderateur, langue = 'en', micro = true, camera = true }) {
   if (bbbActif()) {
     await creerReunionBBB(seance, classe, langue);
     const url = urlSignee('join', {
@@ -82,7 +82,8 @@ async function lienVisio({ seance, classe, utilisateur, moderateur, langue = 'en
   const nom = encodeURIComponent(JSON.stringify(utilisateur.nom));
   return {
     fournisseur: 'jitsi',
-    url: `https://${config.jitsiDomaine}/${salle}#userInfo.displayName=${nom}`,
+    // Choix faits avant d'entrer : micro et caméra activés ou coupés au démarrage.
+    url: `https://${config.jitsiDomaine}/${salle}#userInfo.displayName=${nom}&config.startWithAudioMuted=${!micro}&config.startWithVideoMuted=${!camera}&config.prejoinConfig.enabled=false`,
   };
 }
 

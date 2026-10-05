@@ -40,6 +40,8 @@ app.use('/api/canaux', require('./src/routes/canaux'));
 app.use('/api/seances', require('./src/routes/seances'));
 app.use('/api/agenda', require('./src/routes/agenda'));
 app.use('/api/plateforme', require('./src/routes/plateforme'));
+app.use('/api/invite', require('./src/routes/invite'));
+app.use('/api/conversations', require('./src/routes/conversations'));
 app.get('/api/sante', (req, res) => res.json({ ok: true, visio: visio.fournisseur() }));
 app.use('/api', (req, res) => res.status(404).json({ erreur: t(req, 'route_inconnue') }));
 

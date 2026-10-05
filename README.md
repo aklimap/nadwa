@@ -4,24 +4,21 @@ Plateforme de cours, de réunions et de visioconférence sur le modèle de Micro
 
 « Nadwa » (ندوة) désigne en arabe la réunion d'échange, le séminaire où l'on se retrouve pour discuter et apprendre. Le nom apparaît dans `public/index.html`, `public/i18n.js` et `package.json`.
 
-## Le principe : le modèle de Teams
+## L'interface : le modèle de Teams
 
-L'interface est disponible en **arabe, français et anglais** (sélecteur sur l'écran de connexion, sur l'écran d'accueil et en bas de la liste des équipes). La langue du navigateur est choisie par défaut, le choix est mémorisé, et l'arabe s'affiche de droite à gauche. Les messages d'erreur du serveur suivent la langue choisie.
+Une barre de gauche avec trois boutons, comme Teams :
 
-L'organisation reprend celle de Microsoft Teams, avec le même vocabulaire pour tout le monde :
+- **Conversation** : messages directs à deux ou en groupe, avec appel vidéo ou audio en un clic. On peut écrire aux personnes qui partagent une équipe ou une organisation avec soi. Une pastille rouge compte les messages non lus.
+- **Équipes** : les équipes avec leurs canaux (« Général » d'office, canaux d'annonces possibles). Chaque canal a ses publications ; les réunions à venir y apparaissent sous forme de cartes et un bandeau jaune signale la réunion en cours. En haut : **Inviter** (code de l'équipe, message d'invitation à copier) et **Réunion** (« Réunion immédiate » ou « Planifier une réunion »).
+- **Agenda** : jour, semaine, mois ; boutons « Réunion immédiate » et « Nouvelle réunion » ; clic sur un créneau libre pour planifier, clic sur une réunion pour sa fiche.
 
-- **Organization** : chaque organisation cliente (université, école, entreprise, association…) a la sienne, totalement séparée des autres. Une personne peut appartenir à plusieurs organisations et passe de l'une à l'autre avec la pastille en haut de la barre latérale.
-- **Rôles dans l'organisation** : *Admin* (gère les personnes et les rôles, voit toutes les équipes) ou *Member*.
-- **Teams** : tout membre peut créer une équipe et en devient le propriétaire (*Owner*), comme dans Teams.
-- **Channels** : chaque équipe est découpée en canaux par sujet. Un canal **General** est créé automatiquement et ne peut pas être supprimé ; l'Owner ajoute les autres (« Lab work », « Project group 1 »…). Un canal peut être réservé aux annonces : seuls les Owners y écrivent, les membres lisent. Un point signale les canaux qui ont de nouveaux messages.
-- **Meetings** : tout membre d'une équipe peut planifier une réunion ou lancer une **réunion immédiate** (« Meet now ») ; celui qui l'organise en est l'hôte dans la visio, avec le propriétaire de l'équipe. L'organisateur ou un propriétaire peut la supprimer.
-- **Participants** : toute l'équipe est invitée d'office ; à la planification ou ensuite depuis la fiche de la réunion, on peut ajouter d'autres personnes de l'organisation (recherche par nom ou e-mail). Elles voient la réunion dans leur calendrier, en temps réel, et peuvent la rejoindre sans accéder au reste de l'équipe.
-- **Calendar** : calendrier de l'organisation en vue jour, semaine ou mois, avec repère de l'heure actuelle. Un clic sur un créneau libre ouvre la planification à cette heure (choix de l'équipe) ; un clic sur une réunion affiche sa fiche (Rejoindre, Supprimer, Ouvrir l'équipe). En arabe, la semaine commence le samedi.
-- **Chat** : discussion en temps réel dans chaque canal.
+Avant d'entrer dans une réunion, un écran **« Prêt à rejoindre ? »** permet de régler micro et caméra (aperçu local de la caméra) et de copier le lien d'invitation. Les invités sans compte, venus par le lien, voient le même écran avec un champ pour leur nom.
 
-**Deux codes d'invitation, un seul champ « Join with a code ».** Le code d'une organisation (8 caractères) y fait entrer une personne comme membre ; le code d'une équipe (6 caractères) la fait entrer directement dans l'équipe, et dans l'organisation s'il le faut. Un admin peut aussi ajouter quelqu'un par e-mail (« Add people »), avec un mot de passe provisoire si la personne n'a pas encore de compte.
+Le menu du compte (pastille en bas de la barre) regroupe : profil, langue, changement d'organisation, création d'une organisation, rejoindre avec un code, gestion de l'organisation (administrateurs) et page Plateforme (exploitant).
 
-Au-dessus des organisations, l'**exploitant de la plateforme** voit toutes les organisations clientes dans la page « Platform ».
+**À l'inscription, chacun reçoit automatiquement un espace personnel** avec une équipe « Mes réunions » : on arrive directement dans Nadwa, sans écran de choix. Les organisations (écoles, entreprises, associations) restent en arrière-plan et ne se voient que dans le menu du compte.
+
+L'interface est en **arabe, français et anglais** ; l'arabe s'affiche de droite à gauche.
 
 ## Fonctions
 
@@ -140,12 +137,18 @@ Tables : `utilisateurs`, `espaces` (organisations), `adhesions` (rôle dans l'or
 | GET / POST | `/api/seances/:id/participants` | Équipe et invités / ajouter des invités (organisateur ou Owner) |
 | DELETE | `/api/seances/:id/participants/:uid` | Retirer un invité |
 | GET | `/api/espaces/:id/annuaire` | Personnes de l'organisation (pour inviter) |
+| GET / POST | `/api/conversations` | Mes conversations / en commencer une (`ids`, `nom` pour un groupe) |
+| GET | `/api/conversations/contacts` | Personnes à qui l'on peut écrire |
+| GET / POST | `/api/conversations/:id/messages`, `/lu`, `/appel` | Messages, marquer comme lu, appel vidéo |
 | DELETE | `/api/classes/:id/membres/:uid` | Retirer du groupe |
 | POST / DELETE | `/api/seances/:id/rejoindre`, `/api/seances/:id` | Lien de visio, suppression |
 | GET | `/api/agenda?espace=:id[&du=…&au=…]` | Prochaines réunions, ou toutes celles d'une période (calendrier) |
 | GET | `/api/plateforme` | Vue d'ensemble (exploitant) |
+| POST | `/api/espaces/personnel` | Ouvrir (ou créer) son espace personnel |
+| GET / POST | `/api/invite/:jeton[/rejoindre]` | Lien d'invitation, public : infos de la réunion / entrer avec un nom |
+| PATCH | `/api/auth/moi` | Modifier son nom et son mot de passe |
 
-Événements Socket.IO : `classe:rejoindre`, `message:envoyer` (`canalId`, avec accusé), `message:nouveau`, `seances:maj`, `canaux:maj`.
+Événements Socket.IO : `classe:rejoindre`, `message:envoyer` (`canalId`, avec accusé), `message:nouveau`, `seances:maj`, `canaux:maj`, `dm:envoyer`, `dm:nouveau`.
 
 ## Mise en production
 

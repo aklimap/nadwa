@@ -107,6 +107,32 @@ CREATE TABLE IF NOT EXISTS seance_invites (
 );
 
 CREATE INDEX IF NOT EXISTS idx_invites_utilisateur ON seance_invites(utilisateur_id);
+
+-- Conversations directes (à deux ou en petit groupe), comme le volet « Conversation » de Teams.
+CREATE TABLE IF NOT EXISTS conversations (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  nom         TEXT,                     -- nom d'un groupe ; vide pour une conversation à deux
+  reunion_id  TEXT UNIQUE,              -- salle de visio de la conversation (appels)
+  cree_par    INTEGER REFERENCES utilisateurs(id) ON DELETE SET NULL,
+  cree_le     TEXT NOT NULL DEFAULT ${MAINTENANT},
+  maj_le      TEXT NOT NULL DEFAULT ${MAINTENANT}
+);
+CREATE TABLE IF NOT EXISTS conversation_membres (
+  conversation_id  INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  utilisateur_id   INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  lu_jusqua        INTEGER NOT NULL DEFAULT 0,   -- dernier message lu
+  PRIMARY KEY (conversation_id, utilisateur_id)
+);
+CREATE TABLE IF NOT EXISTS messages_directs (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  conversation_id  INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  utilisateur_id   INTEGER REFERENCES utilisateurs(id) ON DELETE SET NULL,
+  type             TEXT NOT NULL DEFAULT 'texte' CHECK (type IN ('texte', 'appel')),
+  contenu          TEXT NOT NULL,
+  cree_le          TEXT NOT NULL DEFAULT ${MAINTENANT}
+);
+CREATE INDEX IF NOT EXISTS idx_conv_membres_utilisateur ON conversation_membres(utilisateur_id);
+CREATE INDEX IF NOT EXISTS idx_messages_directs ON messages_directs(conversation_id, id);
 CREATE INDEX IF NOT EXISTS idx_adhesions_utilisateur ON adhesions(utilisateur_id);
 CREATE INDEX IF NOT EXISTS idx_classes_espace ON classes(espace_id);
 CREATE INDEX IF NOT EXISTS idx_membres_utilisateur ON membres(utilisateur_id);
@@ -114,6 +140,15 @@ CREATE INDEX IF NOT EXISTS idx_seances_classe ON seances(classe_id, debut);
 CREATE INDEX IF NOT EXISTS idx_canaux_classe ON canaux(classe_id);
 CREATE INDEX IF NOT EXISTS idx_messages_canal ON messages(canal_id, id);
 `);
+
+// Colonnes ajoutées dans les versions récentes : mise à jour automatique des bases existantes.
+if (!colonnes('espaces').includes('personnel')) {
+  db.exec('ALTER TABLE espaces ADD COLUMN personnel INTEGER NOT NULL DEFAULT 0'); // espace personnel (mode libre)
+}
+if (!colonnes('seances').includes('jeton_invite')) {
+  db.exec('ALTER TABLE seances ADD COLUMN jeton_invite TEXT'); // lien d'invitation sans compte
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_seances_jeton ON seances(jeton_invite)');
+}
 
 // Bases antérieures à l'ajout de l'organisateur des réunions : on ajoute la colonne.
 if (!colonnes('seances').includes('organisateur_id')) {

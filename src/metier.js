@@ -31,7 +31,7 @@ function roleDansEspace(utilisateur, espaceId) {
 
 function espacesDe(utilisateur) {
   return db.prepare(`
-    SELECT e.id, e.nom, a.role
+    SELECT e.id, e.nom, e.personnel, a.role
     FROM adhesions a JOIN espaces e ON e.id = a.espace_id
     WHERE a.utilisateur_id = ? ORDER BY e.nom`).all(utilisateur.id);
 }
@@ -142,6 +142,43 @@ function nouveauCode(longueur) {
 const nouveauCodeInvitation = () => nouveauCode(6); // groupes
 const nouveauCodeEspace = () => nouveauCode(8);     // espaces
 
+/** Jeton du lien d'invitation d'une réunion (créé à la demande pour les réunions plus anciennes). */
+function jetonInvite(seanceId) {
+  const existant = db.prepare('SELECT jeton_invite FROM seances WHERE id = ?').get(seanceId)?.jeton_invite;
+  if (existant) return existant;
+  const jeton = crypto.randomBytes(12).toString('base64url');
+  db.prepare('UPDATE seances SET jeton_invite = ? WHERE id = ?').run(jeton, seanceId);
+  return jeton;
+}
+
+/** Espace personnel de l'utilisateur (mode libre), créé avec une équipe « nomEquipe » s'il n'existe pas. */
+function espacePersonnel(utilisateur, nomEquipe) {
+  const existant = db.prepare(`
+    SELECT e.* FROM espaces e JOIN adhesions a ON a.espace_id = e.id
+    WHERE e.personnel = 1 AND e.cree_par = ? AND a.utilisateur_id = ?`).get(utilisateur.id, utilisateur.id);
+  if (existant) return existant;
+  return db.transaction(() => {
+    const { lastInsertRowid } = db
+      .prepare('INSERT INTO espaces (nom, code_invitation, cree_par, personnel) VALUES (?, ?, ?, 1)')
+      .run(utilisateur.nom, nouveauCodeEspace(), utilisateur.id);
+    db.prepare("INSERT INTO adhesions (espace_id, utilisateur_id, role) VALUES (?, ?, 'admin')").run(lastInsertRowid, utilisateur.id);
+    const equipe = db.prepare('INSERT INTO classes (espace_id, nom, responsable_id, code_invitation) VALUES (?, ?, ?, ?)')
+      .run(lastInsertRowid, nomEquipe, utilisateur.id, nouveauCodeInvitation()).lastInsertRowid;
+    creerCanalGeneral(equipe);
+    return db.prepare('SELECT * FROM espaces WHERE id = ?').get(lastInsertRowid);
+  })();
+}
+
+/** Personnes avec qui l'on peut discuter : celles qui partagent au moins une organisation. */
+function contactsDe(utilisateur) {
+  return db.prepare(`
+    SELECT DISTINCT u.id, u.nom, u.email
+    FROM adhesions a1 JOIN adhesions a2 ON a2.espace_id = a1.espace_id
+    JOIN utilisateurs u ON u.id = a2.utilisateur_id
+    WHERE a1.utilisateur_id = ? AND a2.utilisateur_id <> ?
+    ORDER BY u.nom`).all(utilisateur.id, utilisateur.id);
+}
+
 const nouvelIdReunion = (classeId) => `nadwa-${classeId}-${crypto.randomBytes(8).toString('hex')}`;
 
 const SQL_MESSAGE = `
@@ -198,5 +235,8 @@ module.exports = {
   nouveauCodeInvitation,
   nouveauCodeEspace,
   nouvelIdReunion,
+  jetonInvite,
+  espacePersonnel,
+  contactsDe,
   SQL_MESSAGE,
 };

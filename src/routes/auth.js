@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const db = require('../db');
 const config = require('../config');
 const { ouvrirSession, fermerSession, exigerConnexion } = require('../auth');
-const { verifierCompte, espacesDe } = require('../metier');
+const { verifierCompte, espacesDe, espacePersonnel } = require('../metier');
 const { t } = require('../i18n');
 
 const routeur = express.Router();
@@ -33,8 +33,9 @@ routeur.post('/inscription', (req, res) => {
     .run(champs.nom, champs.email, bcrypt.hashSync(champs.motDePasse, 10));
 
   const utilisateur = profil({ id: Number(lastInsertRowid), nom: champs.nom, email: champs.email });
+  espacePersonnel(utilisateur, t(req, 'equipe_perso'));
   ouvrirSession(res, utilisateur);
-  res.status(201).json({ utilisateur, espaces: [] });
+  res.status(201).json({ utilisateur, espaces: espacesDe(utilisateur) });
 });
 
 routeur.post('/connexion', (req, res) => {
@@ -51,6 +52,22 @@ routeur.post('/connexion', (req, res) => {
 routeur.post('/deconnexion', (req, res) => {
   fermerSession(res);
   res.json({ ok: true });
+});
+
+// Modifier son profil : nom, et mot de passe (l'actuel est demandé).
+routeur.patch('/moi', exigerConnexion, (req, res) => {
+  const nom = String(req.body?.nom ?? '').trim();
+  const actuel = String(req.body?.mot_de_passe_actuel ?? '');
+  const nouveau = String(req.body?.nouveau_mot_de_passe ?? '');
+  if (nom.length < 2 || nom.length > 80) return res.status(400).json({ erreur: t(req, 'nom_invalide') });
+  if (nouveau) {
+    const ligne = db.prepare('SELECT mot_de_passe FROM utilisateurs WHERE id = ?').get(req.utilisateur.id);
+    if (!bcrypt.compareSync(actuel, ligne.mot_de_passe)) return res.status(400).json({ erreur: t(req, 'mdp_actuel_faux') });
+    if (nouveau.length < 8) return res.status(400).json({ erreur: t(req, 'mdp_court') });
+    db.prepare('UPDATE utilisateurs SET mot_de_passe = ? WHERE id = ?').run(bcrypt.hashSync(nouveau, 10), req.utilisateur.id);
+  }
+  db.prepare('UPDATE utilisateurs SET nom = ? WHERE id = ?').run(nom, req.utilisateur.id);
+  res.json({ utilisateur: { ...req.utilisateur, nom } });
 });
 
 routeur.get('/moi', exigerConnexion, (req, res) => {

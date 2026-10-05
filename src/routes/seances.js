@@ -2,7 +2,7 @@ const express = require('express');
 const db = require('../db');
 const visio = require('../visio');
 const { exigerConnexion } = require('../auth');
-const { etatSeance, peutAnimer, seanceAccessible, ajouterInvites, OUVERTURE_AVANT_MIN } = require('../metier');
+const { etatSeance, peutAnimer, seanceAccessible, ajouterInvites, jetonInvite, OUVERTURE_AVANT_MIN } = require('../metier');
 const { annoncerSeances } = require('./classes');
 const { t, langueDe } = require('../i18n');
 
@@ -34,7 +34,8 @@ routeur.post('/:id/rejoindre', async (req, res, next) => {
     if (!moderateur && etat === 'terminee') {
       return res.status(403).json({ erreur: t(req, 'reunion_terminee') });
     }
-    res.json(await visio.lienVisio({ seance, classe, utilisateur: u, moderateur, langue: langueDe(req) }));
+    const { micro = true, camera = true } = req.body || {};
+    res.json(await visio.lienVisio({ seance, classe, utilisateur: u, moderateur, langue: langueDe(req), micro: micro !== false, camera: camera !== false }));
   } catch (err) {
     next(err);
   }
@@ -50,6 +51,7 @@ routeur.get('/:id/participants', (req, res) => {
     WHERE u.id = ? OR u.id IN (SELECT utilisateur_id FROM membres WHERE classe_id = ?)
     ORDER BY u.nom`).all(classe.responsable_id, classe.id);
   res.json({
+    jeton: jetonInvite(seance.id),
     equipe: { id: classe.id, nom: classe.nom, membres: equipe },
     invites: invitesDe(seance.id),
     peutModifier: peutAnimer(req.utilisateur, seance, classe),

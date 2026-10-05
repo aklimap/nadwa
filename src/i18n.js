@@ -54,6 +54,14 @@ const MESSAGES = {
 
   visio_ko: ['The video server is not responding. Try again in a moment.', 'Le serveur de visioconférence ne répond pas. Réessayez dans un instant.', 'خادم الاجتماعات المرئية لا يستجيب. أعد المحاولة بعد لحظات.'],
   bbb_refus: ['BigBlueButton could not create the meeting room.', "BigBlueButton n'a pas pu créer la salle.", 'تعذّر على BigBlueButton إنشاء قاعة الاجتماع.'],
+  lien_invalide: ['This invitation link is not valid, or the meeting was deleted.', "Ce lien d'invitation n'est pas valide, ou la réunion a été supprimée.", 'رابط الدعوة هذا غير صالح، أو تم حذف الاجتماع.'],
+  nom_invite: ['Enter your name to join.', 'Indiquez votre nom pour rejoindre.', 'أدخل اسمك للانضمام.'],
+  invite_externe: ['guest', 'invité', 'ضيف'],
+  equipe_perso: ['My meetings', 'Mes réunions', 'اجتماعاتي'],
+  mdp_actuel_faux: ['Your current password is incorrect.', 'Le mot de passe actuel est incorrect.', 'كلمة المرور الحالية غير صحيحة.'],
+  conversation_introuvable: ["Conversation not found, or you don't have access.", "Conversation introuvable, ou vous n'y avez pas accès.", 'المحادثة غير موجودة أو ليس لديك حق الوصول إليها.'],
+  choisir_personne: ['Choose at least one person.', 'Choisissez au moins une personne.', 'اختر شخصًا واحدًا على الأقل.'],
+  appel: ['Call', 'Appel', 'مكالمة'],
   bbb_bienvenue: ['Welcome to {nom}.', 'Bienvenue dans {nom}.', 'مرحبًا بكم في {nom}.'],
 };
 
