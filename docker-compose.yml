@@ -1,0 +1,12 @@
+services:
+  nadwa:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file: .env
+    volumes:
+      - nadwa-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  nadwa-data:

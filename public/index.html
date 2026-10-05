@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Nadwa</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <!-- Connexion / inscription -->
+  <main id="ecran-auth" class="auth" hidden>
+    <section class="auth-marque">
+      <div class="logo" lang="ar" aria-hidden="true">ندوة</div>
+      <h1>Nadwa</h1>
+      <p data-i18n="slogan"></p>
+    </section>
+    <section class="auth-carte">
+      <select class="choix-langue auth-langue" data-i18n-aria="langue"></select>
+      <div class="bascule" role="tablist" data-i18n-aria="acces">
+        <button type="button" role="tab" data-mode="connexion" aria-selected="true" data-i18n="se_connecter"></button>
+        <button type="button" role="tab" data-mode="inscription" aria-selected="false" data-i18n="creer_compte"></button>
+      </div>
+      <form id="form-auth" novalidate>
+        <label data-inscription hidden><span data-i18n="nom_complet"></span>
+          <input name="nom" autocomplete="name">
+        </label>
+        <label><span data-i18n="email"></span>
+          <input name="email" type="email" required autocomplete="email" dir="ltr">
+        </label>
+        <label><span data-i18n="mot_de_passe"></span>
+          <input name="mot_de_passe" type="password" required minlength="8" autocomplete="current-password">
+        </label>
+        <p class="erreur" id="auth-erreur" role="alert"></p>
+        <button class="btn btn-principal btn-large" type="submit" id="auth-soumettre"></button>
+        <p class="note" data-inscription hidden data-i18n="note_inscription"></p>
+      </form>
+    </section>
+  </main>
+
+  <!-- Premier pas : aucune organisation -->
+  <main id="ecran-accueil" class="accueil" hidden>
+    <header class="accueil-haut">
+      <span class="accueil-logo" lang="ar" aria-hidden="true">ندوة</span>
+      <div class="accueil-haut-droite">
+        <select class="choix-langue" data-i18n-aria="langue"></select>
+        <button class="btn-lien" data-deconnexion data-i18n="se_deconnecter"></button>
+      </div>
+    </header>
+    <div class="accueil-intro">
+      <h1 id="accueil-titre"></h1>
+      <p data-i18n="accueil_intro"></p>
+    </div>
+    <div class="accueil-choix">
+      <section class="carte">
+        <h2 data-i18n="creer_org"></h2>
+        <form class="form-creer-espace">
+          <label><span data-i18n="nom_org"></span><input name="nom" required minlength="2" maxlength="100" data-i18n-placeholder="ex_org"></label>
+          <p class="note" data-i18n="note_org"></p>
+          <p class="erreur" role="alert"></p>
+          <button class="btn btn-principal" type="submit" data-i18n="btn_creer_org"></button>
+        </form>
+      </section>
+      <section class="carte">
+        <h2 data-i18n="rejoindre_code"></h2>
+        <form class="form-code">
+          <label><span data-i18n="code_invitation"></span><input name="code" required maxlength="12" autocomplete="off" class="champ-code" placeholder="K7PM2Q"></label>
+          <p class="note" data-i18n="note_code"></p>
+          <p class="erreur" role="alert"></p>
+          <button class="btn btn-secondaire" type="submit" data-i18n="rejoindre"></button>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <!-- Application -->
+  <div id="ecran-app" class="app" hidden>
+    <nav class="rail" data-i18n-aria="nav_principale">
+      <button class="rail-espace" id="btn-espaces" data-i18n-aria="changer_org" data-i18n-title="changer_org"></button>
+      <button class="rail-btn" data-vue="classes" aria-current="page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="8" cy="9" r="3"/><circle cx="16.5" cy="9" r="2.5"/><path d="M2.5 19c.6-3 2.8-4.8 5.5-4.8s4.9 1.8 5.5 4.8M14 14.6c.8-.4 1.6-.6 2.5-.6 2.3 0 4.2 1.6 4.8 4.4"/></svg>
+        <span data-i18n="equipes"></span>
+      </button>
+      <button class="rail-btn" data-vue="agenda">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>
+        <span data-i18n="agenda"></span>
+      </button>
+      <button class="rail-btn" data-vue="gestion" id="rail-gestion" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 20V10l8-6 8 6v10"/><path d="M9.5 20v-5h5v5"/></svg>
+        <span data-i18n="gerer"></span>
+      </button>
+      <button class="rail-btn" data-vue="plateforme" id="rail-plateforme" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
+        <span data-i18n="plateforme"></span>
+      </button>
+      <button class="rail-btn rail-bas" data-deconnexion>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M14 4h4a2 2 0 012 2v12a2 2 0 01-2 2h-4"/><path d="M10 16l-4-4 4-4M6 12h10"/></svg>
+        <span data-i18n="se_deconnecter"></span>
+      </button>
+    </nav>
+
+    <section id="vue-classes" class="vue vue-classes">
+      <aside class="liste-classes" aria-labelledby="liste-titre">
+        <header class="liste-entete">
+          <div>
+            <small id="liste-espace-nom"></small>
+            <h2 id="liste-titre" data-i18n="equipes"></h2>
+          </div>
+          <button class="btn-icone" id="btn-nouvelle-classe" data-i18n-aria="creer_equipe" data-i18n-title="creer_equipe">+</button>
+        </header>
+        <ul id="liste-classes"></ul>
+        <button class="btn btn-secondaire" data-ouvrir-code data-i18n="rejoindre_code"></button>
+        <div class="moi">
+          <span class="avatar" id="moi-avatar" aria-hidden="true"></span>
+          <span><strong id="moi-nom"></strong><small id="moi-email" dir="ltr"></small></span>
+          <select class="choix-langue" data-i18n-aria="langue"></select>
+        </div>
+      </aside>
+      <article class="classe" id="classe"></article>
+    </section>
+
+    <section id="vue-agenda" class="vue vue-cal" hidden>
+      <div id="calendrier" class="calendrier"></div>
+    </section>
+
+    <section id="vue-gestion" class="vue vue-page" hidden>
+      <header class="page-entete">
+        <div>
+          <h1 id="gestion-titre"></h1>
+          <p data-i18n="gestion_intro"></p>
+        </div>
+        <button class="btn btn-principal" id="btn-ajouter-membre" data-i18n="ajouter_personnes"></button>
+      </header>
+      <div class="invitation" id="gestion-invitation"></div>
+      <div class="stats" id="gestion-stats"></div>
+      <div class="tableau" id="gestion-membres"></div>
+    </section>
+
+    <section id="vue-plateforme" class="vue vue-page" hidden>
+      <header class="page-entete">
+        <div>
+          <h1 data-i18n="plateforme"></h1>
+          <p data-i18n="plateforme_intro"></p>
+        </div>
+      </header>
+      <div class="stats" id="plateforme-stats"></div>
+      <div class="tableau" id="plateforme-espaces"></div>
+    </section>
+  </div>
+
+  <!-- Dialogues -->
+  <dialog id="dlg-espaces">
+    <div class="dlg-corps">
+      <h2 data-i18n="vos_orgs"></h2>
+      <ul class="liste-espaces" id="liste-espaces"></ul>
+      <div class="dlg-actions dlg-actions-large">
+        <button type="button" class="btn btn-secondaire" data-ouvrir-code data-i18n="rejoindre_code"></button>
+        <button type="button" class="btn btn-principal" id="btn-creer-espace" data-i18n="creer_org"></button>
+      </div>
+      <button type="button" class="btn-lien dlg-fermer" data-fermer data-i18n="fermer"></button>
+    </div>
+  </dialog>
+
+  <dialog id="dlg-creer-espace">
+    <form class="form-creer-espace">
+      <h2 data-i18n="creer_org"></h2>
+      <label><span data-i18n="nom_org"></span><input name="nom" required minlength="2" maxlength="100" data-i18n-placeholder="ex_org"></label>
+      <p class="erreur" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-secondaire" data-fermer data-i18n="annuler"></button>
+        <button type="submit" class="btn btn-principal" data-i18n="btn_creer_org"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-code">
+    <form class="form-code">
+      <h2 data-i18n="rejoindre_code"></h2>
+      <label><span data-i18n="code_invitation"></span><input name="code" required maxlength="12" autocomplete="off" class="champ-code" placeholder="K7PM2Q"></label>
+      <p class="note" data-i18n="note_code"></p>
+      <p class="erreur" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-secondaire" data-fermer data-i18n="annuler"></button>
+        <button type="submit" class="btn btn-principal" data-i18n="rejoindre"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-classe">
+    <form>
+      <h2 data-i18n="creer_equipe"></h2>
+      <label><span data-i18n="nom_equipe"></span><input name="nom" required maxlength="100" data-i18n-placeholder="ex_equipe"></label>
+      <label><span data-i18n="description"></span><input name="module" maxlength="100" data-i18n-placeholder="ex_description_equipe"></label>
+      <p class="erreur" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-secondaire" data-fermer data-i18n="annuler"></button>
+        <button type="submit" class="btn btn-principal" data-i18n="creer"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-canal">
+    <form>
+      <h2 data-i18n="ajouter_canal"></h2>
+      <label><span data-i18n="nom_canal"></span><input name="nom" required maxlength="50" data-i18n-placeholder="ex_canal"></label>
+      <label><span data-i18n="description"></span><input name="description" maxlength="120" data-i18n-placeholder="ex_description_canal"></label>
+      <label class="case"><input type="checkbox" name="annonces"><span data-i18n="case_annonces"></span></label>
+      <p class="erreur" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-secondaire" data-fermer data-i18n="annuler"></button>
+        <button type="submit" class="btn btn-principal" data-i18n="ajouter"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-seance">
+    <form>
+      <h2 data-i18n="planifier_reunion"></h2>
+      <label id="champ-equipe"><span data-i18n="equipe"></span><select name="classe_id"></select></label>
+      <label><span data-i18n="titre"></span><input name="titre" required maxlength="120"></label>
+      <label><span data-i18n="debut"></span><input name="debut" type="datetime-local" required></label>
+      <label><span data-i18n="duree"></span>
+        <select name="duree_min">
+          <option value="30" data-i18n="d30"></option>
+          <option value="45" data-i18n="d45"></option>
+          <option value="60" data-i18n="d60"></option>
+          <option value="90" selected data-i18n="d90"></option>
+          <option value="120" data-i18n="d120"></option>
+          <option value="180" data-i18n="d180"></option>
+        </select>
+      </label>
+      <fieldset class="participants">
+        <legend data-i18n="participants"></legend>
+        <p class="note" data-i18n="note_participants"></p>
+        <div class="choix-personnes" id="choix-planif"></div>
+      </fieldset>
+      <p class="erreur" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-secondaire" data-fermer data-i18n="annuler"></button>
+        <button type="submit" class="btn btn-principal" data-i18n="planifier"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-membre">
+    <form>
+      <h2 data-i18n="ajouter_personnes"></h2>
+      <label><span data-i18n="email"></span><input name="email" type="email" required dir="ltr"></label>
+      <p class="note" data-i18n="note_ajout_personne"></p>
+      <label><span data-i18n="nom_complet"></span><input name="nom" maxlength="80"></label>
+      <label><span data-i18n="mdp_provisoire"></span><input name="mot_de_passe" minlength="8" autocomplete="new-password"></label>
+      <label><span data-i18n="role"></span>
+        <select name="role">
+          <option value="membre" data-i18n="role_membre"></option>
+          <option value="admin" data-i18n="role_admin"></option>
+        </select>
+      </label>
+      <p class="erreur" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-secondaire" data-fermer data-i18n="annuler"></button>
+        <button type="submit" class="btn btn-principal" data-i18n="ajouter"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-participants">
+    <form>
+      <h2 data-i18n="ajouter_participants"></h2>
+      <p class="note" data-i18n="note_ajout_participants"></p>
+      <div class="choix-personnes" id="choix-ajout"></div>
+      <p class="erreur" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-secondaire" data-fermer data-i18n="annuler"></button>
+        <button type="submit" class="btn btn-principal" data-i18n="ajouter"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-reunion">
+    <div class="dlg-corps"></div>
+  </dialog>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/i18n.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

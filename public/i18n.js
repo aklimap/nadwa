@@ -1,0 +1,237 @@
+/* Textes de l'interface : [anglais, français, arabe]. {nom} = variable. */
+'use strict';
+
+window.NADWA_LANGUES = [
+  { code: 'en', nom: 'English', locale: 'en-GB', dir: 'ltr' },
+  { code: 'fr', nom: 'Français', locale: 'fr-FR', dir: 'ltr' },
+  { code: 'ar', nom: 'العربية', locale: 'ar-DZ', dir: 'rtl' },
+];
+
+window.NADWA_TEXTES = {
+  // Connexion et accueil
+  slogan: ['Your organization, online: video meetings, team chat and a shared calendar.', "Votre organisation en ligne : réunions en visio, discussions d'équipe et agenda partagé.", 'مؤسستك على الإنترنت: اجتماعات مرئية، ومحادثات الفريق، وتقويم مشترك.'],
+  langue: ['Language', 'Langue', 'اللغة'],
+  acces: ['Access', 'Accès', 'الدخول'],
+  se_connecter: ['Sign in', 'Se connecter', 'تسجيل الدخول'],
+  creer_compte: ['Create account', 'Créer un compte', 'إنشاء حساب'],
+  nom_complet: ['Full name', 'Nom complet', 'الاسم الكامل'],
+  email: ['Email', 'Adresse e-mail', 'البريد الإلكتروني'],
+  mot_de_passe: ['Password', 'Mot de passe', 'كلمة المرور'],
+  note_inscription: ["Next, you'll create your organization or join one with a code.", 'Ensuite, vous créerez votre organisation ou en rejoindrez une avec un code.', 'بعد ذلك، ستنشئ مؤسستك أو تنضم إلى مؤسسة موجودة باستخدام رمز.'],
+  se_deconnecter: ['Sign out', 'Se déconnecter', 'تسجيل الخروج'],
+  bienvenue_nom: ['Welcome, {nom}', 'Bienvenue, {nom}', 'مرحبًا، {nom}'],
+  accueil_intro: ["Create an organization, or join one you've been invited to.", "Créez une organisation, ou rejoignez celle où l'on vous a invité.", 'أنشئ مؤسسة، أو انضم إلى مؤسسة دُعيت إليها.'],
+  creer_org: ['Create an organization', 'Créer une organisation', 'إنشاء مؤسسة'],
+  nom_org: ['Organization name', "Nom de l'organisation", 'اسم المؤسسة'],
+  ex_org: ['e.g. Tassili Training Institute', 'ex. Institut de formation Tassili', 'مثال: معهد التكوين طاسيلي'],
+  note_org: ['Your school, company, association or any group that works together.', 'Votre école, entreprise, association ou tout groupe qui travaille ensemble.', 'مدرستك أو شركتك أو جمعيتك، أو أي مجموعة تعمل معًا.'],
+  btn_creer_org: ['Create organization', "Créer l'organisation", 'إنشاء المؤسسة'],
+  rejoindre_code: ['Join with a code', 'Rejoindre avec un code', 'الانضمام برمز'],
+  code_invitation: ['Invite code', "Code d'invitation", 'رمز الدعوة'],
+  note_code: ['An organization code or a team code.', "Un code d'organisation ou un code d'équipe.", 'رمز مؤسسة أو رمز فريق.'],
+  rejoindre: ['Join', 'Rejoindre', 'انضمام'],
+
+  // Navigation
+  nav_principale: ['Main navigation', 'Navigation principale', 'التنقل الرئيسي'],
+  changer_org: ['Switch organization', "Changer d'organisation", 'تبديل المؤسسة'],
+  equipes: ['Teams', 'Équipes', 'الفرق'],
+  agenda: ['Calendar', 'Agenda', 'التقويم'],
+  gerer: ['Manage', 'Gérer', 'الإدارة'],
+  plateforme: ['Platform', 'Plateforme', 'المنصة'],
+  vos_orgs: ['Your organizations', 'Vos organisations', 'مؤسساتك'],
+  fermer: ['Close', 'Fermer', 'إغلاق'],
+  annuler: ['Cancel', 'Annuler', 'إلغاء'],
+
+  // Équipes et canaux
+  creer_equipe: ['Create a team', 'Créer une équipe', 'إنشاء فريق'],
+  nom_equipe: ['Team name', "Nom de l'équipe", 'اسم الفريق'],
+  ex_equipe: ['e.g. Sales team, Year 4 Biology', 'ex. Équipe commerciale, Biologie 4ᵉ année', 'مثال: فريق المبيعات، علم الأحياء السنة الرابعة'],
+  description: ['Description', 'Description', 'الوصف'],
+  ex_description_equipe: ['What this team is for', 'À quoi sert cette équipe', 'الغرض من هذا الفريق'],
+  creer: ['Create', 'Créer', 'إنشاء'],
+  aucune_equipe: ["You're not in any team yet. Create one with +, or join with a code.", "Vous ne faites encore partie d'aucune équipe. Créez-en une avec +, ou rejoignez-en une avec un code.", 'لست عضوًا في أي فريق بعد. أنشئ فريقًا بالزر +، أو انضم إلى فريق برمز.'],
+  choisir_equipe: ['Pick a team to see its chat, meetings and members.', 'Choisissez une équipe pour voir sa discussion, ses réunions et ses membres.', 'اختر فريقًا لعرض محادثاته واجتماعاته وأعضائه.'],
+  vide_creer_equipe: ['Create a team to start working together, or join one with a code.', 'Créez une équipe pour commencer à travailler ensemble, ou rejoignez-en une avec un code.', 'أنشئ فريقًا لتبدأوا العمل معًا، أو انضم إلى فريق برمز.'],
+  equipe_creee: ['Team created. Share the team code to add people.', 'Équipe créée. Partagez son code pour ajouter des personnes.', 'تم إنشاء الفريق. شارك رمزه لإضافة الأشخاص.'],
+  proprietaire: ['Owner', 'Propriétaire', 'المالك'],
+  proprietaire_nom: ['Owner: {nom}', 'Propriétaire : {nom}', 'المالك: {nom}'],
+  retour_equipes: ['Back to teams', 'Retour aux équipes', 'العودة إلى الفرق'],
+  sections_equipe: ['Team sections', "Sections de l'équipe", 'أقسام الفريق'],
+  onglet_chat: ['Chat', 'Discussion', 'المحادثة'],
+  onglet_reunions: ['Meetings', 'Réunions', 'الاجتماعات'],
+  onglet_membres: ['Members', 'Membres', 'الأعضاء'],
+  canaux: ['Channels', 'Canaux', 'القنوات'],
+  canal_general: ['General', 'Général', 'عام'],
+  tag_annonces: ['Announcements', 'Annonces', 'إعلانات'],
+  tag_annonces_info: ['Only team owners can post', 'Seuls les propriétaires publient', 'لا ينشر فيها إلا المالكون'],
+  nouveaux_messages: ['New messages', 'Nouveaux messages', 'رسائل جديدة'],
+  plus_canal: ['+ Add channel', '+ Ajouter un canal', '+ إضافة قناة'],
+  ajouter_canal: ['Add a channel', 'Ajouter un canal', 'إضافة قناة'],
+  nom_canal: ['Channel name', 'Nom du canal', 'اسم القناة'],
+  ex_canal: ['e.g. Lab work, Project group 1', 'ex. Travaux pratiques, Groupe projet 1', 'مثال: الأعمال التطبيقية، مجموعة المشروع 1'],
+  ex_description_canal: ['What this channel is about', 'Le sujet de ce canal', 'موضوع هذه القناة'],
+  case_annonces: ['Announcements channel: only team owners can post', "Canal d'annonces : seuls les propriétaires de l'équipe publient", 'قناة إعلانات: لا ينشر فيها إلا مالكو الفريق'],
+  ajouter: ['Add', 'Ajouter', 'إضافة'],
+  canal_cree: ['Channel created.', 'Canal créé.', 'تم إنشاء القناة.'],
+  confirmer_suppr_canal: ['Delete the {nom} channel and all its messages?', 'Supprimer le canal {nom} et tous ses messages ?', 'هل تريد حذف القناة «{nom}» وجميع رسائلها؟'],
+  canal_supprime: ['Channel deleted.', 'Canal supprimé.', 'تم حذف القناة.'],
+  supprimer_canal: ['Delete channel', 'Supprimer le canal', 'حذف القناة'],
+
+  // Discussion
+  chargement_messages: ['Loading messages…', 'Chargement des messages…', 'جارٍ تحميل الرسائل…'],
+  message_a: ['Message to {canal}', 'Message pour {canal}', 'رسالة إلى {canal}'],
+  ecrire_dans: ['Post in {canal}', 'Écrire dans {canal}', 'اكتب في {canal}'],
+  envoyer: ['Send', 'Envoyer', 'إرسال'],
+  lecture_seule: ['Only team owners can post in this channel.', "Seuls les propriétaires de l'équipe peuvent écrire dans ce canal.", 'يمكن لمالكي الفريق فقط النشر في هذه القناة.'],
+  message_non_envoye: ["Your message wasn't sent. Check your connection.", "Votre message n'a pas été envoyé. Vérifiez votre connexion.", 'لم تُرسل رسالتك. تحقّق من اتصالك.'],
+  aucun_message: ['No messages yet. Start the conversation.', "Aucun message pour l'instant. Lancez la discussion.", 'لا توجد رسائل بعد. ابدأ المحادثة.'],
+
+  // Réunions
+  planifier_reunion: ['Schedule a meeting', 'Planifier une réunion', 'جدولة اجتماع'],
+  titre: ['Title', 'Titre', 'العنوان'],
+  debut: ['Start', 'Début', 'البداية'],
+  duree: ['Duration', 'Durée', 'المدة'],
+  d30: ['30 minutes', '30 minutes', '30 دقيقة'],
+  d45: ['45 minutes', '45 minutes', '45 دقيقة'],
+  d60: ['1 hour', '1 heure', 'ساعة واحدة'],
+  d90: ['1 hour 30 minutes', '1 h 30', 'ساعة ونصف'],
+  d120: ['2 hours', '2 heures', 'ساعتان'],
+  d180: ['3 hours', '3 heures', '3 ساعات'],
+  planifier: ['Schedule', 'Planifier', 'جدولة'],
+  reunion_planifiee: ['Meeting scheduled.', 'Réunion planifiée.', 'تمت جدولة الاجتماع.'],
+  etat_a_venir: ['Upcoming', 'À venir', 'قادم'],
+  etat_en_direct: ['Live', 'En cours', 'جارٍ'],
+  etat_terminee: ['Ended', 'Terminée', 'انتهى'],
+  reunion_en_cours: ['Meeting in progress: {titre}', 'Réunion en cours : {titre}', 'اجتماع جارٍ: {titre}'],
+  reunion_en_cours_court: ['Meeting in progress', 'Réunion en cours', 'اجتماع جارٍ'],
+  jusqua: ['Until {heure}', "Jusqu'à {heure}", 'حتى {heure}'],
+  rejoindre_reunion: ['Join', 'Rejoindre', 'انضمام'],
+  demarrer: ['Start', 'Démarrer', 'بدء'],
+  supprimer: ['Delete', 'Supprimer', 'حذف'],
+  minutes: ['{n} min', '{n} min', '{n} دقيقة'],
+  aucune_reunion: ['No upcoming meetings.', 'Aucune réunion à venir.', 'لا توجد اجتماعات قادمة.'],
+  astuce_planifier: ['Use "Schedule a meeting" or "Meet now" above.', 'Utilisez « Planifier une réunion » ou « Réunion immédiate » ci-dessus.', 'استخدم «جدولة اجتماع» أو «اجتماع فوري» في الأعلى.'],
+  reunions_passees: ['Past meetings', 'Réunions passées', 'الاجتماعات السابقة'],
+  confirmer_suppr_reunion: ['Delete this meeting?', 'Supprimer cette réunion ?', 'هل تريد حذف هذا الاجتماع؟'],
+  reunion_supprimee: ['Meeting deleted.', 'Réunion supprimée.', 'تم حذف الاجتماع.'],
+  agenda_intro: ['Upcoming meetings in {org}.', 'Réunions à venir dans {org}.', 'الاجتماعات القادمة في {org}.'],
+  chargement: ['Loading…', 'Chargement…', 'جارٍ التحميل…'],
+
+  // Calendrier et réunions immédiates
+  cal_aujourdhui: ['Today', "Aujourd'hui", 'اليوم'],
+  cal_precedent: ['Previous', 'Précédent', 'السابق'],
+  cal_suivant: ['Next', 'Suivant', 'التالي'],
+  cal_vues: ['Calendar view', 'Affichage du calendrier', 'طريقة عرض التقويم'],
+  vue_jour: ['Day', 'Jour', 'يوم'],
+  vue_semaine: ['Week', 'Semaine', 'أسبوع'],
+  vue_mois: ['Month', 'Mois', 'شهر'],
+  nouvelle_reunion: ['New meeting', 'Nouvelle réunion', 'اجتماع جديد'],
+  cal_astuce: ['Click a free time slot to schedule a meeting.', 'Cliquez sur un créneau libre pour planifier une réunion.', 'انقر على خانة زمنية فارغة لجدولة اجتماع.'],
+  plus_n: ['+{n} more', '+{n} autres', '+{n} أخرى'],
+  equipe: ['Team', 'Équipe', 'الفريق'],
+  organisateur: ['Organizer', 'Organisateur', 'المنظِّم'],
+  organisee_par: ['organized by {nom}', 'organisée par {nom}', 'المنظِّم: {nom}'],
+  etat: ['Status', 'État', 'الحالة'],
+  ouvrir_equipe: ['Open team', "Ouvrir l'équipe", 'فتح الفريق'],
+  reunion_maintenant: ['Meet now', 'Réunion immédiate', 'اجتماع فوري'],
+  titre_reunion_immediate: ['Instant meeting', 'Réunion immédiate', 'اجتماع فوري'],
+  aucune_equipe_planifier: ['Join or create a team first to schedule a meeting.', "Rejoignez ou créez d'abord une équipe pour planifier une réunion.", 'انضم إلى فريق أو أنشئ فريقًا أولًا لجدولة اجتماع.'],
+
+  // Participants
+  participants: ['Participants', 'Participants', 'المشاركون'],
+  note_participants: ['The whole team is invited. You can add other people from your organization.', "Toute l'équipe est invitée. Vous pouvez ajouter d'autres personnes de votre organisation.", 'الفريق بأكمله مدعو. يمكنك إضافة أشخاص آخرين من مؤسستك.'],
+  note_ajout_participants: ['People you add see the meeting in their calendar and can join it.', "Les personnes ajoutées voient la réunion dans leur agenda et peuvent la rejoindre.", 'يرى الأشخاص المضافون الاجتماع في تقويمهم ويمكنهم الانضمام إليه.'],
+  ajouter_participants: ['Add participants', 'Ajouter des participants', 'إضافة مشاركين'],
+  rechercher_personne: ['Search by name or email', 'Rechercher par nom ou e-mail', 'ابحث بالاسم أو البريد الإلكتروني'],
+  aucune_personne: ['No one found.', 'Aucune personne trouvée.', 'لم يُعثر على أحد.'],
+  toute_equipe: ['Everyone in {equipe} ({n})', "Toute l'équipe {equipe} ({n})", 'جميع أعضاء {equipe} ({n})'],
+  invites: ['Invited', 'Invités', 'المدعوون'],
+  n_invites: ['+{n} invited', '+{n} invité(s)', '+{n} مدعو'],
+  participants_ajoutes: ['Participants added.', 'Participants ajoutés.', 'تمت إضافة المشاركين.'],
+  retirer_nom: ['Remove {nom}', 'Retirer {nom}', 'إزالة {nom}'],
+  vous_etes_invite: ["You're invited", 'Vous êtes invité', 'أنت مدعو'],
+  choisir_personne: ['Choose at least one person.', 'Choisissez au moins une personne.', 'اختر شخصًا واحدًا على الأقل.'],
+
+  // Membres
+  retirer: ['Remove', 'Retirer', 'إزالة'],
+  code_equipe: ['Team code', "Code de l'équipe", 'رمز الفريق'],
+  note_code_equipe: ['Anyone who enters this code under "Join with a code" is added to this team.', "Toute personne qui saisit ce code dans « Rejoindre avec un code » est ajoutée à l'équipe.", 'كل من يُدخل هذا الرمز في «الانضمام برمز» يُضاف إلى هذا الفريق.'],
+  copier_code: ['Copy code', 'Copier le code', 'نسخ الرمز'],
+  code_copie: ['Code copied.', 'Code copié.', 'تم نسخ الرمز.'],
+  code_x: ['Code: {code}', 'Code : {code}', 'الرمز: {code}'],
+  membres_n: ['Members ({n})', 'Membres ({n})', 'الأعضاء ({n})'],
+  personne_rejoint: ['No one has joined yet. Share the team code.', "Personne n'a encore rejoint l'équipe. Partagez son code.", 'لم ينضم أحد بعد. شارك رمز الفريق.'],
+  confirmer_retrait_equipe: ['Remove this person from the team?', "Retirer cette personne de l'équipe ?", 'هل تريد إزالة هذا الشخص من الفريق؟'],
+  retire_equipe: ['Removed from the team.', "Retiré de l'équipe.", 'تمت الإزالة من الفريق.'],
+
+  // Organisations
+  org_creee: ['Organization created. Invite people with the organization code.', "Organisation créée. Invitez des personnes avec le code de l'organisation.", 'تم إنشاء المؤسسة. ادعُ الأشخاص باستخدام رمز المؤسسة.'],
+  vous_avez_rejoint: ['You joined {nom}.', 'Vous avez rejoint {nom}.', 'انضممت إلى {nom}.'],
+  gestion_intro: ['Manage people and roles.', 'Gérez les personnes et les rôles.', 'إدارة الأشخاص والأدوار.'],
+  ajouter_personnes: ['Add people', 'Ajouter des personnes', 'إضافة أشخاص'],
+  note_ajout_personne: ["If they don't have an account yet, add their name and a temporary password to share with them.", "Si la personne n'a pas encore de compte, indiquez son nom et un mot de passe provisoire à lui transmettre.", 'إن لم يكن لدى الشخص حساب بعد، أضف اسمه وكلمة مرور مؤقتة لتسلّمها له.'],
+  mdp_provisoire: ['Temporary password', 'Mot de passe provisoire', 'كلمة مرور مؤقتة'],
+  role: ['Role', 'Rôle', 'الدور'],
+  role_admin: ['Admin', 'Administrateur', 'مسؤول'],
+  role_membre: ['Member', 'Membre', 'عضو'],
+  role_de: ['Role of {nom}', 'Rôle de {nom}', 'دور {nom}'],
+  role_maj: ['Role updated.', 'Rôle mis à jour.', 'تم تحديث الدور.'],
+  ajoute_org: ['Added to the organization.', "Ajouté à l'organisation.", 'تمت الإضافة إلى المؤسسة.'],
+  compte_cree_mdp: ['Account created. Share the temporary password with them.', 'Compte créé. Transmettez-lui le mot de passe provisoire.', 'تم إنشاء الحساب. سلّمه كلمة المرور المؤقتة.'],
+  code_org: ['Organization code', "Code de l'organisation", 'رمز المؤسسة'],
+  note_code_org: ['Anyone who enters this code joins the organization as a member. You can change their role below.', "Toute personne qui saisit ce code rejoint l'organisation comme membre. Vous pouvez changer son rôle ci-dessous.", 'كل من يُدخل هذا الرمز ينضم إلى المؤسسة كعضو. يمكنك تغيير دوره أدناه.'],
+  confirmer_retrait_org: ['Remove this person from the organization? They will lose access to all its teams.', "Retirer cette personne de l'organisation ? Elle perdra l'accès à toutes ses équipes.", 'هل تريد إزالة هذا الشخص من المؤسسة؟ سيفقد الوصول إلى جميع فرقها.'],
+  retire_org: ['Removed from the organization.', "Retiré de l'organisation.", 'تمت الإزالة من المؤسسة.'],
+  stat_membres: ['Members', 'Membres', 'الأعضاء'],
+  stat_admins: ['Admins', 'Administrateurs', 'المسؤولون'],
+  stat_equipes: ['Teams', 'Équipes', 'الفرق'],
+  stat_reunions_venir: ['Upcoming meetings', 'Réunions à venir', 'الاجتماعات القادمة'],
+  col_nom: ['Name', 'Nom', 'الاسم'],
+  col_email: ['Email', 'Adresse e-mail', 'البريد الإلكتروني'],
+  col_role: ['Role', 'Rôle', 'الدور'],
+  col_rejoint: ['Joined', 'Arrivée', 'تاريخ الانضمام'],
+  actions: ['Actions', 'Actions', 'إجراءات'],
+
+  // Plateforme
+  plateforme_intro: ['All organizations using Nadwa.', 'Toutes les organisations qui utilisent Nadwa.', 'جميع المؤسسات التي تستخدم «ندوة».'],
+  stat_orgs: ['Organizations', 'Organisations', 'المؤسسات'],
+  stat_comptes: ['Accounts', 'Comptes', 'الحسابات'],
+  stat_reunions: ['Meetings scheduled', 'Réunions planifiées', 'الاجتماعات المجدولة'],
+  col_org: ['Organization', 'Organisation', 'المؤسسة'],
+  col_personnes: ['People', 'Personnes', 'الأشخاص'],
+  col_equipes: ['Teams', 'Équipes', 'الفرق'],
+  col_creee: ['Created', 'Créée le', 'تاريخ الإنشاء'],
+  erreur_n: ['Error {n}', 'Erreur {n}', 'خطأ {n}'],
+
+  // Démonstration
+  demo_intro: ['Demo: sign in as one of these people, or create an account to set up your own organization.', 'Démo : entrez comme l\'une de ces personnes, ou créez un compte pour monter votre propre organisation.', 'تجربة: سجّل الدخول باسم أحد هؤلاء الأشخاص، أو أنشئ حسابًا لتأسيس مؤسستك.'],
+  visio_demo: ['Demo: in production, the BigBlueButton meeting room opens here.', "Démo : en production, la salle BigBlueButton s'ouvre ici.", 'تجربة: في النسخة الفعلية تُفتح هنا قاعة اجتماع BigBlueButton.'],
+  salle: ['Meeting room', 'Salle de réunion', 'قاعة الاجتماع'],
+  hote: ['Host', 'Hôte', 'المضيف'],
+  participant: ['Attendee', 'Participant', 'مشارك'],
+  micro_on: ['Mic on', 'Micro activé', 'الميكروفون مفعّل'],
+  micro_off: ['Mic off', 'Micro coupé', 'الميكروفون مغلق'],
+  camera_on: ['Camera on', 'Caméra activée', 'الكاميرا مفعّلة'],
+  camera_off: ['Camera off', 'Caméra coupée', 'الكاميرا مغلقة'],
+  partager_ecran: ['Share screen', "Partager l'écran", 'مشاركة الشاشة'],
+  quitter: ['Leave', 'Quitter', 'مغادرة'],
+  vous: ['{nom} (you)', '{nom} (vous)', '{nom} (أنت)'],
+  reponse_auto: ['Got it, thanks!', 'Bien reçu, merci !', 'وصلت، شكرًا!'],
+};
+
+/* Langue courante : choix mémorisé, sinon langue du navigateur, sinon anglais. */
+(function () {
+  const codes = window.NADWA_LANGUES.map((l) => l.code);
+  let langue;
+  try { langue = localStorage.getItem('nadwa:langue'); } catch { /* stockage indisponible */ }
+  if (!codes.includes(langue)) langue = (navigator.language || 'en').slice(0, 2);
+  if (!codes.includes(langue)) langue = 'en';
+  window.NADWA_LANGUE = langue;
+
+  window.t = function (cle, variables = {}) {
+    const textes = window.NADWA_TEXTES[cle];
+    if (!textes) return cle;
+    const i = codes.indexOf(window.NADWA_LANGUE);
+    return (textes[i] || textes[0]).replace(/\{(\w+)\}/g, (_, nom) => variables[nom] ?? '');
+  };
+})();

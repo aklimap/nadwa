@@ -1,0 +1,37 @@
+# Mise en ligne sur Render (render.com) : New > Blueprint, puis choisir ce dépôt GitHub.
+# Render lit ce fichier et crée le service web avec son disque de données.
+services:
+  - type: web
+    name: nadwa
+    runtime: node
+    plan: starter            # toujours actif ; le plan gratuit s'endort et n'a pas de disque
+    region: frankfurt        # le plus proche de l'Algérie
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/sante
+    disk:
+      name: nadwa-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: DB_PATH
+        value: /var/data/nadwa.db
+      - key: COOKIES_SECURISES
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: INSCRIPTION_OUVERTE
+        value: "true"
+      - key: CREATION_ESPACE_OUVERTE
+        value: "true"
+      # À saisir dans Render au moment du déploiement :
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_MOT_DE_PASSE
+        sync: false
+      - key: BBB_URL
+        sync: false
+      - key: BBB_SECRET
+        sync: false
