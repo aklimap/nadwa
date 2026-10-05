@@ -98,6 +98,10 @@ BBB_URL=https://visio.votre-domaine.dz/bigbluebutton/
 BBB_SECRET=le-secret-affiché
 ```
 
+**Logo dans la salle de visio.** Avec BigBlueButton, Nadwa transmet son propre logo (`public/logo-nadwa.svg`) à chaque création de salle : c'est lui qui s'affiche dans la réunion, à la place du logo de BigBlueButton. Pour utiliser un autre logo, remplacez simplement ce fichier.
+
+Le serveur public gratuit **meet.jit.si**, utilisé tant que BigBlueButton n'est pas configuré, impose le logo Jitsi : il ne peut pas être retiré. Il disparaît dès que la visio passe par votre propre serveur (BigBlueButton, ou un serveur Jitsi installé par vos soins).
+
 Au redémarrage, la ligne de démarrage affiche `visio : bigbluebutton`. Rien d'autre à changer : Nadwa crée la salle BigBlueButton à la première connexion et fait entrer l'Owner de l'équipe comme modérateur, les membres comme participants.
 
 ## Architecture

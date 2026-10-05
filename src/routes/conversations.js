@@ -132,6 +132,7 @@ routeur.post('/:id/appel', async (req, res, next) => {
       langue: langueDe(req),
       micro: req.body?.micro !== false,
       camera: req.body?.camera !== false,
+      logo: `${req.protocol}://${req.get('host')}/logo-nadwa.svg`,
     }));
   } catch (err) {
     next(err);

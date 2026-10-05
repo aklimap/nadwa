@@ -31,7 +31,7 @@ function motDePasse(reunionId, role) {
   return crypto.createHmac('sha256', config.jwtSecret).update(`${reunionId}:${role}`).digest('hex').slice(0, 16);
 }
 
-async function creerReunionBBB(seance, classe, langue) {
+async function creerReunionBBB(seance, classe, langue, logo) {
   const params = {
     name: `${classe.nom}: ${seance.titre}`,
     meetingID: seance.reunion_id,
@@ -42,6 +42,7 @@ async function creerReunionBBB(seance, classe, langue) {
     allowStartStopRecording: 'true',
     welcome: t(langue, 'bbb_bienvenue', { nom: classe.nom }),
     'meta_plateforme': 'Nadwa',
+    ...(logo ? { logo } : {}), // logo de Nadwa dans la salle, à la place de celui de BigBlueButton
     'meta_classe': String(classe.id),
   };
 
@@ -64,9 +65,9 @@ async function creerReunionBBB(seance, classe, langue) {
  * Renvoie l'URL qui fait entrer l'utilisateur dans la salle de la séance.
  * L'enseignant (ou l'administrateur) entre comme modérateur.
  */
-async function lienVisio({ seance, classe, utilisateur, moderateur, langue = 'en', micro = true, camera = true }) {
+async function lienVisio({ seance, classe, utilisateur, moderateur, langue = 'en', micro = true, camera = true, logo = null }) {
   if (bbbActif()) {
-    await creerReunionBBB(seance, classe, langue);
+    await creerReunionBBB(seance, classe, langue, logo);
     const url = urlSignee('join', {
       fullName: utilisateur.nom,
       meetingID: seance.reunion_id,
