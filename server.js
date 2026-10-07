@@ -29,9 +29,13 @@ app.use(helmet({
   },
   crossOriginOpenerPolicy: false, // la visio s'ouvre dans un nouvel onglet
 }));
-app.use(express.json({ limit: '100kb' }));
+// Les téléversements de fichiers lisent eux-mêmes le corps brut de la requête.
+app.use((req, res, next) => (req.method === 'POST' && /\/fichiers$/.test(req.path) ? next() : express.json({ limit: '100kb' })(req, res, next)));
 app.use(cookieParser());
 
+// Santé et version : ouvrir /api/sante pour savoir quelle version est en ligne.
+const { version } = require('./package.json');
+app.get('/api/sante', (req, res) => res.json({ ok: true, version, visio: visio.fournisseur(), emails: Boolean(config.smtp.host) }));
 app.use('/api/auth', require('./src/routes/auth'));
 app.use('/api/espaces', require('./src/routes/espaces'));
 app.use('/api/rejoindre', require('./src/routes/rejoindre'));
@@ -42,7 +46,7 @@ app.use('/api/agenda', require('./src/routes/agenda'));
 app.use('/api/plateforme', require('./src/routes/plateforme'));
 app.use('/api/invite', require('./src/routes/invite'));
 app.use('/api/conversations', require('./src/routes/conversations'));
-app.get('/api/sante', (req, res) => res.json({ ok: true, visio: visio.fournisseur() }));
+app.use('/api', require('./src/routes/fichiers'));
 app.use('/api', (req, res) => res.status(404).json({ erreur: t(req, 'route_inconnue') }));
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -50,6 +54,10 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
+  if (err.type === 'entity.too.large') {
+    const { t } = require('./src/i18n');
+    return res.status(413).json({ erreur: t(req, 'fichier_trop_gros', { max: config.tailleMaxMo }) });
+  }
   if (!err.expose) console.error(err);
   res.status(err.status || 500).json({ erreur: err.expose ? err.message : t(req, 'erreur_interne') });
 });

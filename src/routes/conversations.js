@@ -11,8 +11,10 @@ const routeur = express.Router();
 routeur.use(exigerConnexion);
 
 const SQL_DM = `
-  SELECT d.id, d.conversation_id, d.type, d.contenu, d.cree_le, u.id AS auteur_id, u.nom AS auteur_nom
-  FROM messages_directs d LEFT JOIN utilisateurs u ON u.id = d.utilisateur_id`;
+  SELECT d.id, d.conversation_id, d.type, d.contenu, d.cree_le, u.id AS auteur_id, u.nom AS auteur_nom,
+         d.fichier_id, f.nom AS fichier_nom, f.taille AS fichier_taille, f.type_mime AS fichier_type
+  FROM messages_directs d LEFT JOIN utilisateurs u ON u.id = d.utilisateur_id
+  LEFT JOIN fichiers f ON f.id = d.fichier_id`;
 
 /** Résumé d'une conversation pour un utilisateur : autres membres, dernier message, non lus. */
 function resume(conversationId, moiId) {
@@ -45,9 +47,9 @@ function prevenir(req, conversationId, evenement, donnees) {
   cible.emit(evenement, donnees);
 }
 
-function ajouterMessage(conversationId, auteurId, contenu, type = 'texte') {
-  const { lastInsertRowid } = db.prepare('INSERT INTO messages_directs (conversation_id, utilisateur_id, type, contenu) VALUES (?, ?, ?, ?)')
-    .run(conversationId, auteurId, type, contenu);
+function ajouterMessage(conversationId, auteurId, contenu, type = 'texte', fichierId = null) {
+  const { lastInsertRowid } = db.prepare('INSERT INTO messages_directs (conversation_id, utilisateur_id, type, contenu, fichier_id) VALUES (?, ?, ?, ?, ?)')
+    .run(conversationId, auteurId, type, contenu, fichierId);
   db.prepare("UPDATE conversations SET maj_le = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?").run(conversationId);
   db.prepare('UPDATE conversation_membres SET lu_jusqua = ? WHERE conversation_id = ? AND utilisateur_id = ?').run(lastInsertRowid, conversationId, auteurId);
   return db.prepare(`${SQL_DM} WHERE d.id = ?`).get(lastInsertRowid);
@@ -132,7 +134,7 @@ routeur.post('/:id/appel', async (req, res, next) => {
       langue: langueDe(req),
       micro: req.body?.micro !== false,
       camera: req.body?.camera !== false,
-      logo: `${req.protocol}://${req.get('host')}/logo-nadwa.svg`,
+      logo: `${req.protocol}://${req.get('host')}/logo-nadwa${langueDe(req) === 'ar' ? '-ar' : ''}.svg`,
     }));
   } catch (err) {
     next(err);

@@ -74,6 +74,28 @@ Le plan Starter est nécessaire : le plan gratuit se met en veille et n'a pas de
 
 Chaque modification du code envoyée sur GitHub redéploie automatiquement la plateforme.
 
+## Fichiers (équivalent SharePoint)
+
+Chaque canal a un onglet **Fichiers** : une bibliothèque de documents avec dossiers et sous-dossiers, comme l'onglet Fichiers de Teams (qui s'appuie sur SharePoint). Tout membre de l'équipe peut déposer des fichiers (bouton « Téléverser » ou glisser-déposer) et créer des dossiers ; dans un canal d'annonces, seuls les propriétaires déposent. Les PDF et les images s'ouvrent dans le navigateur, les autres fichiers se téléchargent. Un fichier déposé à la racine du canal est aussi annoncé dans les publications. On peut joindre un fichier dans un canal ou dans une conversation avec le trombone.
+
+Les fichiers sont enregistrés sur le même disque que la base (`/var/data/fichiers` sur Render), 25 Mo maximum par fichier (`TAILLE_MAX_MO` pour changer). Le disque de 1 Go se remplit vite avec des documents : augmentez sa taille dans Render (*Disks*) quand il le faut.
+
+## E-mails : bienvenue et mot de passe oublié
+
+Nadwa envoie des e-mails à la création d'un compte, quand un administrateur ajoute quelqu'un à une organisation (avec son mot de passe provisoire), pour **« Mot de passe oublié ? »** (lien valable 1 heure, utilisable une fois) et pour confirmer un changement de mot de passe. Les e-mails partent dans la langue de la personne (arabe, français ou anglais).
+
+Il faut un service d'envoi d'e-mails (SMTP). À renseigner dans Render, onglet *Environment* :
+
+| Variable | Exemple avec Brevo (gratuit jusqu'à 300 e-mails par jour) | Exemple avec Gmail |
+|---|---|---|
+| `SMTP_HOST` | `smtp-relay.brevo.com` | `smtp.gmail.com` |
+| `SMTP_PORT` | `587` | `587` |
+| `SMTP_USER` | l'identifiant SMTP donné par Brevo | votre adresse Gmail |
+| `SMTP_PASS` | la clé SMTP donnée par Brevo | un « mot de passe d'application » Google (pas votre mot de passe habituel) |
+| `MAIL_FROM` | `Nadwa <no-reply@votre-domaine>` (adresse validée dans Brevo) | `Nadwa <votre.adresse@gmail.com>` |
+
+Sans ces variables, Nadwa fonctionne normalement mais n'envoie aucun e-mail (le contenu est seulement écrit dans les journaux) et « Mot de passe oublié ? » invite à contacter l'administrateur. L'adresse utilisée dans les liens est celle de Render, ou `APP_URL` si vous en définissez une (votre nom de domaine).
+
 ## Brancher BigBlueButton
 
 BigBlueButton s'installe sur un serveur dédié (Ubuntu 22.04 pour la version 3.0, avec un nom de domaine et les ports audio/vidéo ouverts). Pour un pilote, visez au moins 8 cœurs et 16 Go de RAM ; vérifiez les exigences à jour sur docs.bigbluebutton.org.
@@ -151,6 +173,11 @@ Tables : `utilisateurs`, `espaces` (organisations), `adhesions` (rôle dans l'or
 | POST | `/api/espaces/personnel` | Ouvrir (ou créer) son espace personnel |
 | GET / POST | `/api/invite/:jeton[/rejoindre]` | Lien d'invitation, public : infos de la réunion / entrer avec un nom |
 | PATCH | `/api/auth/moi` | Modifier son nom et son mot de passe |
+| POST | `/api/auth/mot-de-passe-oublie`, `/api/auth/reinitialiser` | Lien de réinitialisation par e-mail / nouveau mot de passe |
+| GET / POST | `/api/canaux/:id/fichiers` | Bibliothèque du canal / téléverser (corps brut, en-tête `X-Nom-Fichier`) |
+| POST | `/api/canaux/:id/dossiers` | Créer un dossier |
+| GET / DELETE | `/api/fichiers/:id` | Ouvrir ou télécharger (`?telecharger=1`) / supprimer |
+| POST | `/api/conversations/:id/fichiers` | Pièce jointe dans une conversation |
 
 Événements Socket.IO : `classe:rejoindre`, `message:envoyer` (`canalId`, avec accusé), `message:nouveau`, `seances:maj`, `canaux:maj`, `dm:envoyer`, `dm:nouveau`.
 

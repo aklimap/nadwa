@@ -3,7 +3,8 @@ const bcrypt = require('bcryptjs');
 const db = require('../db');
 const config = require('../config');
 const { exigerConnexion } = require('../auth');
-const { t } = require('../i18n');
+const { t, langueDe } = require('../i18n');
+const mail = require('../mail');
 const {
   ROLES_ESPACE, verifierCompte, roleDansEspace, espacesDe,
   espacePourUtilisateur, nouveauCodeEspace, espacePersonnel,
@@ -100,14 +101,19 @@ routeur.post('/:id/membres', (req, res) => {
   if (!utilisateur) {
     const erreur = verifierCompte({ nom, email, motDePasse });
     if (erreur) return res.status(400).json({ erreur: t(req, erreur) });
-    const { lastInsertRowid } = db.prepare('INSERT INTO utilisateurs (nom, email, mot_de_passe) VALUES (?, ?, ?)')
-      .run(nom, email, bcrypt.hashSync(motDePasse, 10));
+    const { lastInsertRowid } = db.prepare('INSERT INTO utilisateurs (nom, email, mot_de_passe, langue) VALUES (?, ?, ?, ?)')
+      .run(nom, email, bcrypt.hashSync(motDePasse, 10), langueDe(req));
     utilisateur = { id: Number(lastInsertRowid) };
   }
   if (roleDansEspace({ id: utilisateur.id }, espace.id)) {
     return res.status(409).json({ erreur: t(req, 'deja_membre_org') });
   }
   db.prepare('INSERT INTO adhesions (espace_id, utilisateur_id, role) VALUES (?, ?, ?)').run(espace.id, utilisateur.id, role);
+  // E-mail à la personne : identifiants si le compte vient d'être créé, simple avis sinon.
+  const personne = db.prepare('SELECT nom, email, langue FROM utilisateurs WHERE id = ?').get(utilisateur.id);
+  const commun = { email: personne.email, nom: personne.nom, langue: compteExistant ? personne.langue : langueDe(req),
+    url: config.urlPublique || `${req.protocol}://${req.get('host')}`, organisation: espace.nom, par: req.utilisateur.nom };
+  if (compteExistant) mail.ajoutOrganisation(commun); else mail.compteCree({ ...commun, motDePasse });
   res.status(201).json({ ok: true, compte_existant: compteExistant });
 });
 

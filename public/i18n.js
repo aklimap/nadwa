@@ -242,6 +242,38 @@ window.NADWA_TEXTES = {
   ouvrir: ['Open', 'Ouvrir', 'فتح'],
   vous_moi: ['You', 'Vous', 'أنت'],
 
+  // Fichiers (bibliothèque de documents)
+  onglet_fichiers: ['Files', 'Fichiers', 'الملفات'],
+  televerser: ['Upload', 'Téléverser', 'رفع ملفات'],
+  nouveau_dossier: ['New folder', 'Nouveau dossier', 'مجلد جديد'],
+  nom_dossier: ['Folder name', 'Nom du dossier', 'اسم المجلد'],
+  dossier_cree: ['Folder created.', 'Dossier créé.', 'تم إنشاء المجلد.'],
+  fichiers_vide: ['No files here yet. Drop files here, or use "Upload".', 'Aucun fichier ici pour le moment. Déposez des fichiers ici, ou utilisez « Téléverser ».', 'لا توجد ملفات هنا بعد. اسحب الملفات وأفلتها هنا، أو استخدم «رفع ملفات».'],
+  deposer_ici: ['Drop to upload', 'Déposez pour téléverser', 'أفلت للرفع'],
+  col_modifie: ['Modified', 'Modifié', 'آخر تعديل'],
+  col_par: ['By', 'Par', 'بواسطة'],
+  col_taille: ['Size', 'Taille', 'الحجم'],
+  telecharger: ['Download', 'Télécharger', 'تنزيل'],
+  envoi_fichier: ['Uploading {nom}…', 'Envoi de {nom}…', 'جارٍ رفع {nom}…'],
+  fichier_envoye: ['File shared.', 'Fichier partagé.', 'تمت مشاركة الملف.'],
+  confirmer_suppr_fichier: ['Delete {nom}?', 'Supprimer {nom} ?', 'هل تريد حذف «{nom}»؟'],
+  confirmer_suppr_dossier: ['Delete the folder {nom} and everything in it?', 'Supprimer le dossier {nom} et tout son contenu ?', 'هل تريد حذف المجلد «{nom}» وكل محتواه؟'],
+  fichier_supprime: ['Deleted.', 'Supprimé.', 'تم الحذف.'],
+  joindre: ['Attach a file', 'Joindre un fichier', 'إرفاق ملف'],
+  fichier_trop_gros_client: ['{nom} is too large (maximum {max} MB).', '{nom} est trop volumineux (maximum {max} Mo).', '«{nom}» كبير جدًا (الحد الأقصى {max} ميغابايت).'],
+  unites_taille: ['B|KB|MB|GB', 'o|Ko|Mo|Go', 'بايت|ك.ب|م.ب|غ.ب'],
+
+  // Mot de passe oublié
+  mdp_oublie: ['Forgot password?', 'Mot de passe oublié ?', 'نسيت كلمة المرور؟'],
+  oubli_texte: ["Enter your email address: we'll send you a link to choose a new password.", 'Indiquez votre adresse e-mail : nous vous enverrons un lien pour choisir un nouveau mot de passe.', 'أدخل بريدك الإلكتروني وسنرسل إليك رابطًا لاختيار كلمة مرور جديدة.'],
+  envoyer_lien: ['Send the link', 'Envoyer le lien', 'إرسال الرابط'],
+  oubli_envoye: ['If an account exists with this address, an email is on its way. Check your inbox, and your spam folder.', 'Si un compte existe avec cette adresse, un e-mail vient de partir. Vérifiez votre boîte de réception, et les courriers indésirables.', 'إذا كان هناك حساب بهذا العنوان، فقد أُرسلت رسالة. تحقّق من بريدك الوارد ومن مجلد الرسائل غير المرغوب فيها.'],
+  reinit_titre: ['Choose a new password', 'Choisir un nouveau mot de passe', 'اختيار كلمة مرور جديدة'],
+  nouveau_mdp_obl: ['New password', 'Nouveau mot de passe', 'كلمة المرور الجديدة'],
+  confirmer_mdp: ['Confirm the password', 'Confirmez le mot de passe', 'تأكيد كلمة المرور'],
+  mdp_differents: ["The two passwords don't match.", 'Les deux mots de passe ne sont pas identiques.', 'كلمتا المرور غير متطابقتين.'],
+  reinit_ok: ['Password changed. Welcome back!', 'Mot de passe modifié. Bon retour !', 'تم تغيير كلمة المرور. مرحبًا بعودتك!'],
+
   // Membres
   retirer: ['Remove', 'Retirer', 'إزالة'],
   code_equipe: ['Team code', "Code de l'équipe", 'رمز الفريق'],

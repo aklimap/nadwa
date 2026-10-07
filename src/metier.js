@@ -182,8 +182,10 @@ function contactsDe(utilisateur) {
 const nouvelIdReunion = (classeId) => `nadwa-${classeId}-${crypto.randomBytes(8).toString('hex')}`;
 
 const SQL_MESSAGE = `
-  SELECT m.id, m.classe_id, m.canal_id, m.contenu, m.cree_le, u.id AS auteur_id, u.nom AS auteur_nom
-  FROM messages m JOIN utilisateurs u ON u.id = m.utilisateur_id`;
+  SELECT m.id, m.classe_id, m.canal_id, m.contenu, m.cree_le, u.id AS auteur_id, u.nom AS auteur_nom,
+         m.fichier_id, f.nom AS fichier_nom, f.taille AS fichier_taille, f.type_mime AS fichier_type
+  FROM messages m JOIN utilisateurs u ON u.id = m.utilisateur_id
+  LEFT JOIN fichiers f ON f.id = m.fichier_id`;
 
 // ---------- Canaux ----------
 

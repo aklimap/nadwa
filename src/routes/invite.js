@@ -39,7 +39,7 @@ routeur.post('/:jeton/rejoindre', async (req, res, next) => {
     if (etat === 'terminee') return res.status(403).json({ erreur: t(req, 'reunion_terminee') });
 
     const invite = { id: `invite-${Date.now()}`, nom: `${nom} (${t(req, 'invite_externe')})` };
-    res.json(await visio.lienVisio({ seance, classe, utilisateur: invite, moderateur: false, langue: langueDe(req), micro: req.body?.micro !== false, camera: req.body?.camera !== false, logo: `${req.protocol}://${req.get('host')}/logo-nadwa.svg` }));
+    res.json(await visio.lienVisio({ seance, classe, utilisateur: invite, moderateur: false, langue: langueDe(req), micro: req.body?.micro !== false, camera: req.body?.camera !== false, logo: `${req.protocol}://${req.get('host')}/logo-nadwa${langueDe(req) === 'ar' ? '-ar' : ''}.svg` }));
   } catch (err) {
     next(err);
   }

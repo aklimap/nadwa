@@ -31,6 +31,17 @@ services:
         sync: false
       - key: ADMIN_MOT_DE_PASSE
         sync: false
+      # Envoi des e-mails (bienvenue, mot de passe oublié) : voir le README
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
       - key: BBB_URL
         sync: false
       - key: BBB_SECRET

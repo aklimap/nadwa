@@ -30,6 +30,11 @@ const ICONES = {
   orga: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10l8-6 8 6v10"/><path d="M9.5 20v-5h5v5"/></svg>',
   grille: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>',
   sortir: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M10 16l-4-4 4-4M6 12h10"/></svg>',
+  ouvrir: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
+  telecharger: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
+  trombone: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 11-8.5 8.5a5 5 0 0 1-7-7L14 4a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4L15.5 7"/></svg>',
+  dossier: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+  poubelle: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>',
   code: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1"/><path d="M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1"/></svg>',
 };
 
@@ -73,12 +78,72 @@ const stateLabel = (etat) => t(`etat_${etat}`);
 const channelName = (c) => (c.est_general ? t('canal_general') : c.nom);
 const orgName = (o) => (o?.personnel ? t('mon_espace') : o?.nom ?? '');
 const inviteLink = (jeton) => (window.NADWA_LIEN_INVITE ? window.NADWA_LIEN_INVITE(jeton) : `${location.origin}/r/${jeton}`);
+const fileUrl = (id, download = false) => (window.NADWA_URL_FICHIER ? window.NADWA_URL_FICHIER(id, download) : `/api/fichiers/${id}${download ? '?telecharger=1' : ''}`);
+const TAILLE_MAX_MO = 25;
+function formatSize(n) {
+  const unites = t('unites_taille').split('|');
+  let i = 0; let v = Number(n) || 0;
+  while (v >= 1024 && i < unites.length - 1) { v /= 1024; i += 1; }
+  return `${new Intl.NumberFormat(langue().locale, { maximumFractionDigits: i ? 1 : 0 }).format(v)} ${unites[i]}`;
+}
+/** Pastille du type de fichier (PDF, DOC, XLS…). */
+function extBadge(nom, type) {
+  const ext = (String(nom).split('.').pop() || '').toLowerCase();
+  const famille = /pdf/.test(ext) ? 'pdf' : /docx?|odt|rtf/.test(ext) ? 'doc' : /xlsx?|ods|csv/.test(ext) ? 'xls' : /pptx?|odp/.test(ext) ? 'ppt'
+    : /^image\//.test(type || '') ? 'img' : '';
+  return `<span class="ext ${famille}" aria-hidden="true">${esc((ext || '?').slice(0, 4).toUpperCase())}</span>`;
+}
+const isImage = (type) => /^image\/(png|jpeg|gif|webp)$/.test(type || '');
+/** Carte d'une pièce jointe dans un message (aperçu pour les images). */
+function attachmentHtml(m) {
+  if (!m.fichier_id) return '';
+  return `${isImage(m.fichier_type) ? `<a href="${esc(fileUrl(m.fichier_id))}" target="_blank" rel="noopener"><img class="apercu-image" src="${esc(fileUrl(m.fichier_id))}" alt="${esc(m.fichier_nom)}" loading="lazy"></a>` : ''}
+    <div class="piece-jointe">${extBadge(m.fichier_nom, m.fichier_type)}
+      <div><strong>${esc(m.fichier_nom)}</strong><small>${esc(formatSize(m.fichier_taille))}</small></div>
+      <a class="btn-icone" href="${esc(fileUrl(m.fichier_id))}" target="_blank" rel="noopener" aria-label="${esc(t('ouvrir'))}" title="${esc(t('ouvrir'))}">${ICONES.ouvrir}</a>
+      <a class="btn-icone" href="${esc(fileUrl(m.fichier_id, true))}" download aria-label="${esc(t('telecharger'))}" title="${esc(t('telecharger'))}">${ICONES.telecharger}</a>
+    </div>`;
+}
+
+/** Téléverse des fichiers vers un canal (dossier) ou une conversation. */
+async function uploadFiles(files, url) {
+  for (const file of files) {
+    if (file.size > TAILLE_MAX_MO * 1024 * 1024) { toast(t('fichier_trop_gros_client', { nom: file.name, max: TAILLE_MAX_MO })); continue; }
+    toast(t('envoi_fichier', { nom: file.name }));
+    try {
+      if (window.NADWA_TELEVERSER) await window.NADWA_TELEVERSER(url, file);
+      else {
+        const res = await fetch(`/api${url}`, {
+          method: 'POST', credentials: 'same-origin', body: file,
+          headers: { 'X-Langue': window.NADWA_LANGUE, 'X-Nom-Fichier': encodeURIComponent(file.name), 'Content-Type': file.type || 'application/octet-stream' },
+        });
+        if (!res.ok) { let d = null; try { d = await res.json(); } catch { /* vide */ } throw new Error(d?.erreur || t('erreur_n', { n: res.status })); }
+      }
+      toast(t('fichier_envoye'));
+    } catch (err) { toast(err.message); }
+  }
+}
+/** Ouvre le sélecteur de fichiers et téléverse vers « url ». */
+function pickFiles(url, after) {
+  const input = $('#choix-fichiers');
+  input.value = '';
+  input.onchange = async () => { const files = [...input.files]; if (files.length) { await uploadFiles(files, url); after?.(); } };
+  input.click();
+}
+
 const canHost = (m) => m.organisateur_id === state.me.id || m.responsable_id === state.me.id || state.org?.role === 'admin';
 
 function translatePage() {
   const l = langue();
   document.documentElement.lang = l.code;
   document.documentElement.dir = l.dir;
+  // Nom de la plateforme : en arabe « ندوة », en français et en anglais « Nadwa ».
+  $$('[data-logo]').forEach((el) => {
+    const ar = l.code === 'ar';
+    el.textContent = ar ? 'ندوة' : 'Nadwa';
+    el.lang = ar ? 'ar' : 'en';
+    el.classList.toggle('latin', !ar);
+  });
   $$('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
   $$('[data-i18n-placeholder]').forEach((el) => { el.placeholder = t(el.dataset.i18nPlaceholder); });
   $$('[data-i18n-aria]').forEach((el) => { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
@@ -109,7 +174,7 @@ document.addEventListener('change', (e) => {
 // ---------- État, API, messages ----------
 const state = {
   me: null, orgs: [], org: null, view: 'classes',
-  teams: [], teamId: null, detail: null, meetings: [], channels: [], channelId: null, unread: new Set(), tab: 'publications', teamFilter: '',
+  teams: [], teamId: null, detail: null, fileFolder: null, meetings: [], channels: [], channelId: null, unread: new Set(), tab: 'publications', teamFilter: '',
   convs: [], convId: null, convFilter: '', contacts: null,
   socket: null, authMode: 'connexion',
 };
@@ -172,6 +237,7 @@ function setAuthMode(mode) {
   $('#auth-bascule-texte').textContent = t(signup ? 'deja_compte' : 'pas_de_compte');
   $('#auth-bascule').textContent = t(signup ? 'se_connecter' : 'creer_compte');
   $('#auth-erreur').textContent = '';
+  $('#btn-oubli').hidden = signup;
 }
 $('#auth-bascule').addEventListener('click', () => setAuthMode(state.authMode === 'inscription' ? 'connexion' : 'inscription'));
 
@@ -202,6 +268,29 @@ $('#btn-lien-reunion').addEventListener('click', () => openDialog('dlg-lien', as
   history.pushState(null, '', window.NADWA_LIEN_INVITE ? `#/r/${jeton}` : `/r/${jeton}`);
   showGuest(jeton);
 }));
+
+$('#btn-oubli').addEventListener('click', () => {
+  $('#oubli-envoye').hidden = true;
+  openDialog('dlg-oubli', async ({ email }) => {
+    await api('/auth/mot-de-passe-oublie', { method: 'POST', body: { email } });
+    $('#oubli-envoye').hidden = false;
+    throw Object.assign(new Error(''), { garder: true }); // le dialogue reste ouvert pour afficher la confirmation
+  }, (form) => { form.email.value = $('#form-auth').email.value; });
+});
+
+/** Lien reçu par e-mail : /reinitialiser/<jeton> (ou #/reinitialiser/<jeton>). */
+const resetTokenInUrl = () => (location.pathname.match(/^\/reinitialiser\/([\w-]{20,})/) || location.hash.match(/^#\/reinitialiser\/([\w-]{20,})/) || [])[1] || null;
+function showReset(jeton) {
+  showScreen('ecran-auth');
+  setAuthMode('connexion');
+  openDialog('dlg-reinit', async ({ mot_de_passe: mdp, confirmation }) => {
+    if (mdp !== confirmation) throw new Error(t('mdp_differents'));
+    const result = await api('/auth/reinitialiser', { method: 'POST', body: { jeton, mot_de_passe: mdp } });
+    history.replaceState(null, '', location.hash.startsWith('#/reinitialiser/') ? location.pathname + location.search : '/');
+    toast(t('reinit_ok'));
+    start(result);
+  });
+}
 
 async function signOut() {
   await api('/auth/deconnexion', { method: 'POST' }).catch(() => {});
@@ -265,6 +354,7 @@ function connectSocket() {
     if (classe_id === state.teamId) loadMeetings();
   });
   socket.on('dm:nouveau', onDirectMessage);
+  socket.on('fichiers:maj', ({ canal_id }) => { if (canal_id === state.channelId && state.tab === 'fichiers' && state.view === 'classes') renderFiles(); });
 }
 
 // ---------- Navigation ----------
@@ -422,7 +512,7 @@ let openToken = 0;
 async function openTeam(id, { keep = false } = {}) {
   const token = ++openToken;
   const sameTeam = state.teamId === id;
-  if (!sameTeam) { state.tab = 'publications'; state.unread.clear(); }
+  if (!sameTeam) { state.tab = 'publications'; state.unread.clear(); state.fileFolder = null; }
   state.teamId = id;
   renderTeamList();
   state.socket?.emit('classe:rejoindre', id);
@@ -438,6 +528,7 @@ async function openTeam(id, { keep = false } = {}) {
 }
 
 function selectChannel(id) {
+  if (state.channelId !== id) state.fileFolder = null;
   state.channelId = id;
   state.unread.delete(id);
   state.tab = 'publications';
@@ -480,6 +571,7 @@ function renderTeam() {
       </div>
       <div class="onglets" role="tablist">
         <button role="tab" data-onglet="publications" aria-selected="${state.tab === 'publications'}">${t('publications')}</button>
+        <button role="tab" data-onglet="fichiers" aria-selected="${state.tab === 'fichiers'}">${t('onglet_fichiers')}</button>
         <button role="tab" data-onglet="membres" aria-selected="${state.tab === 'membres'}">${t('onglet_membres')}</button>
       </div>
     </header>
@@ -488,7 +580,7 @@ function renderTeam() {
   $('#btn-inviter')?.addEventListener('click', openInvite);
   $('#btn-reunion').addEventListener('click', (e) => openMenu('menu-reunion', e.currentTarget));
   $$('[data-onglet]').forEach((b) => b.addEventListener('click', () => { state.tab = b.dataset.onglet; renderTeam(); }));
-  if (state.tab === 'membres') renderMembers(); else renderFeed();
+  if (state.tab === 'membres') renderMembers(); else if (state.tab === 'fichiers') renderFiles(); else renderFeed();
 }
 
 // Menu « Réunion » de l'équipe
@@ -526,11 +618,13 @@ async function renderFeed() {
     </div>
     ${canPost ? `
       <div class="compose"><form id="compose">
+        <button type="button" class="btn-joindre" id="joindre-canal" aria-label="${esc(t('joindre'))}" title="${esc(t('joindre'))}">${ICONES.trombone}</button>
         <label class="sr" for="champ-message">${esc(t('message_a', { canal: channelName(channel) }))}</label>
         <textarea id="champ-message" rows="1" maxlength="4000" placeholder="${esc(t('nouvelle_publication', { canal: channelName(channel) }))}"></textarea>
         <button class="btn-envoyer" type="submit" aria-label="${esc(t('envoyer'))}">${ICONES.envoyer}</button>
       </form></div>` : `<p class="lecture-seule">${t('lecture_seule')}</p>`}`;
   renderLiveBanner();
+  $('#joindre-canal')?.addEventListener('click', () => pickFiles(`/canaux/${channel.id}/fichiers`));
   if (canPost) bindComposer($('#compose'), (contenu, done) => {
     state.socket.emit('message:envoyer', { canalId: channel.id, contenu }, (res) => {
       if (res?.ok) done(); else toast(res?.erreur || t('message_non_envoye'));
@@ -562,9 +656,10 @@ function appendPost(m, scroll) {
   el.innerHTML = `${avatar(m.auteur_id, m.auteur_nom)}
     <div class="publication-corps">
       <div class="publication-tete"><strong>${esc(m.auteur_nom)}</strong>${owner ? `<span class="badge">${t('proprietaire')}</span>` : ''}<time datetime="${esc(m.cree_le)}">${esc(fmt.message.format(new Date(m.cree_le)))}</time></div>
-      <p></p>
+      <p></p>${attachmentHtml(m)}
     </div>`;
   $('p', el).textContent = m.contenu;
+  if (!m.contenu) $('p', el).remove();
   feed.append(el);
   if (scroll && (atBottom || m.auteur_id === state.me.id)) feed.scrollTop = feed.scrollHeight;
 }
@@ -591,6 +686,71 @@ function bindComposer(form, send) {
     if (!contenu) return;
     send(contenu, () => { field.value = ''; field.style.height = 'auto'; field.focus(); });
   });
+}
+
+// ---------- Onglet Fichiers : bibliothèque de documents du canal ----------
+async function renderFiles() {
+  const zone = $('#zone-onglet');
+  const channel = state.channels.find((c) => c.id === state.channelId);
+  if (!channel) { zone.innerHTML = ''; return; }
+  const folder = state.fileFolder;
+  let data;
+  try { data = await api(`/canaux/${channel.id}/fichiers${folder ? `?dossier=${folder}` : ''}`); }
+  catch (err) { state.fileFolder = null; toast(err.message); return; }
+  if (state.tab !== 'fichiers' || state.channelId !== channel.id || state.fileFolder !== folder) return;
+  const target = `/canaux/${channel.id}/fichiers?${folder ? `dossier=${folder}&` : ''}publier=${folder ? 0 : 1}`;
+  zone.innerHTML = `
+    <div class="fichiers" id="zone-fichiers" data-depot="${esc(t('deposer_ici'))}">
+      <div class="fichiers-barre">
+        <nav class="ariane" aria-label="${esc(t('onglet_fichiers'))}">
+          ${data.chemin.length ? `<button data-dossier="">${esc(channelName(channel))}</button>` : `<span aria-current="page">${esc(channelName(channel))}</span>`}
+          ${data.chemin.map((d, i) => `<span class="sep">›</span>${i === data.chemin.length - 1 ? `<span aria-current="page">${esc(d.nom)}</span>` : `<button data-dossier="${d.id}">${esc(d.nom)}</button>`}`).join('')}
+        </nav>
+        ${data.peut_deposer ? `
+          <button class="btn btn-contour" id="btn-dossier">${ICONES.dossier}<span>${t('nouveau_dossier')}</span></button>
+          <button class="btn btn-accent" id="btn-televerser">${ICONES.telecharger}<span>${t('televerser')}</span></button>` : ''}
+      </div>
+      ${data.elements.length ? `
+      <table class="table-fichiers">
+        <thead><tr><th>${t('col_nom')}</th><th class="col-option">${t('col_modifie')}</th><th class="col-option">${t('col_par')}</th><th class="col-option">${t('col_taille')}</th><th><span class="sr">${t('actions')}</span></th></tr></thead>
+        <tbody>${data.elements.map((f) => `
+          <tr>
+            <td><div class="nom-fichier">${f.est_dossier ? `<span class="ext dossier">${ICONES.dossier}</span><button data-dossier="${f.id}">${esc(f.nom)}</button>`
+              : `${extBadge(f.nom, f.type_mime)}<a href="${esc(fileUrl(f.id))}" target="_blank" rel="noopener">${esc(f.nom)}</a>`}</div></td>
+            <td class="discret col-option">${esc(fmt.message.format(new Date(f.cree_le)))}</td>
+            <td class="discret col-option">${esc(f.auteur_nom || '')}</td>
+            <td class="discret col-option">${f.est_dossier ? '' : esc(formatSize(f.taille))}</td>
+            <td class="actions">
+              ${f.est_dossier ? '' : `<a class="btn-icone" href="${esc(fileUrl(f.id, true))}" download aria-label="${esc(t('telecharger'))}" title="${esc(t('telecharger'))}">${ICONES.telecharger}</a>`}
+              ${f.peut_supprimer ? `<button class="btn-icone" data-suppr-fichier="${f.id}" data-nom="${esc(f.nom)}" data-est-dossier="${f.est_dossier}" aria-label="${esc(t('supprimer'))}" title="${esc(t('supprimer'))}">${ICONES.poubelle}</button>` : ''}
+            </td>
+          </tr>`).join('')}</tbody>
+      </table>` : `<div class="fil-vide fichiers-vide">${ICONES.dossier}<br>${t(data.peut_deposer ? 'fichiers_vide' : 'aucun_resultat')}</div>`}
+    </div>`;
+  $$('[data-dossier]', zone).forEach((b) => b.addEventListener('click', () => { state.fileFolder = Number(b.dataset.dossier) || null; renderFiles(); }));
+  $('#btn-televerser')?.addEventListener('click', () => pickFiles(target, renderFiles));
+  $('#btn-dossier')?.addEventListener('click', () => openDialog('dlg-dossier', async ({ nom }) => {
+    await api(`/canaux/${channel.id}/dossiers`, { method: 'POST', body: { nom, parent_id: folder } });
+    toast(t('dossier_cree'));
+    renderFiles();
+  }));
+  $$('[data-suppr-fichier]', zone).forEach((b) => b.addEventListener('click', async () => {
+    const question = Number(b.dataset.estDossier) ? 'confirmer_suppr_dossier' : 'confirmer_suppr_fichier';
+    if (!confirm(t(question, { nom: b.dataset.nom }))) return;
+    try { await api(`/fichiers/${b.dataset.supprFichier}`, { method: 'DELETE' }); toast(t('fichier_supprime')); renderFiles(); }
+    catch (err) { toast(err.message); }
+  }));
+  // Glisser-déposer des fichiers depuis l'ordinateur
+  const depot = $('#zone-fichiers');
+  if (data.peut_deposer) {
+    depot.addEventListener('dragover', (e) => { e.preventDefault(); depot.classList.add('depot'); });
+    depot.addEventListener('dragleave', (e) => { if (!depot.contains(e.relatedTarget)) depot.classList.remove('depot'); });
+    depot.addEventListener('drop', async (e) => {
+      e.preventDefault(); depot.classList.remove('depot');
+      const files = [...(e.dataTransfer?.files || [])];
+      if (files.length) { await uploadFiles(files, target); renderFiles(); }
+    });
+  }
 }
 
 function renderMembers() {
@@ -740,7 +900,7 @@ function renderPrejoin() {
   if (m.etat === 'terminee') action = `<p class="message-info">${t('invite_terminee')}</p>`;
   else if (!open) action = `<p class="message-info">${esc(t('invite_ouvre_a', { heure: fmt.time.format(ouverture), min: 10 }))}</p>`;
   else action = `
-    <form id="form-rejoindre" class="carte" style="padding:0;box-shadow:none;gap:12px">
+    <form id="form-rejoindre" class="form-rejoindre">
       ${guest ? `<label><span>${t('votre_nom')}</span><input name="nom" required minlength="2" maxlength="60" autocomplete="name"></label><p class="note">${t('invite_sans_compte')}</p>` : ''}
       <p class="erreur" role="alert"></p>
       <button class="btn btn-accent btn-grand" type="submit">${t('rejoindre_maintenant')}</button>
@@ -781,7 +941,7 @@ function renderPrejoin() {
             <h2>${t('inviter_quelqu_un')}</h2>
             <p class="note">${t('note_lien')}</p>
             <div class="lien-ligne"><input readonly dir="ltr" value="${esc(inviteLink(m.jeton))}" aria-label="${esc(t('lien_invitation'))}"><button type="button" class="btn btn-contour" data-copier-lien="${esc(m.jeton)}">${t('copier_lien')}</button></div>
-            ${m.peutModifier ? `<button type="button" class="btn-lien" id="avant-ajout" style="justify-self:start">${t('ajouter_participants')}</button>` : ''}
+            ${m.peutModifier ? `<button type="button" class="btn-lien a-gauche" id="avant-ajout">${t('ajouter_participants')}</button>` : ''}
           </div>` : ''}
         </div>
       </div>
@@ -866,7 +1026,7 @@ const convAvatar = (c, cls = 'grand') => (c.membres.length === 1 ? avatar(c.memb
 const convPreview = (c) => {
   if (!c.dernier) return t('nouvelle_conversation');
   const who = c.dernier.auteur_id === state.me.id ? `${t('vous_moi')} : ` : (c.membres.length > 1 ? `${c.dernier.auteur_nom} : ` : '');
-  return c.dernier.type === 'appel' ? t('appel_lance_par', { nom: c.dernier.auteur_nom }) : who + c.dernier.contenu;
+  return c.dernier.type === 'appel' ? t('appel_lance_par', { nom: c.dernier.auteur_nom }) : who + (c.dernier.contenu || c.dernier.fichier_nom || '');
 };
 
 $('#recherche-conv').addEventListener('input', (e) => { state.convFilter = e.target.value.trim().toLowerCase(); renderConvList(); });
@@ -913,6 +1073,7 @@ async function openConversation(id) {
     </header>
     <div class="fil" id="fil-dm"><p class="chargement">${t('chargement_messages')}</p></div>
     <div class="compose"><form id="compose-dm">
+      <button type="button" class="btn-joindre" id="joindre-dm" aria-label="${esc(t('joindre'))}" title="${esc(t('joindre'))}">${ICONES.trombone}</button>
       <label class="sr" for="champ-dm">${t('message')}</label>
       <textarea id="champ-dm" rows="1" maxlength="4000" placeholder="${esc(t('ecrire_message'))}"></textarea>
       <button class="btn-envoyer" type="submit" aria-label="${esc(t('envoyer'))}">${ICONES.envoyer}</button>
@@ -920,6 +1081,7 @@ async function openConversation(id) {
   $('#btn-retour-conv').addEventListener('click', backToList);
   $('#appel-video').addEventListener('click', () => startCall(id, true));
   $('#appel-audio').addEventListener('click', () => startCall(id, false));
+  $('#joindre-dm').addEventListener('click', () => pickFiles(`/conversations/${id}/fichiers`));
   bindComposer($('#compose-dm'), (contenu, done) => {
     state.socket.emit('dm:envoyer', { conversationId: id, contenu }, (res) => { if (res?.ok) done(); else toast(res?.erreur || t('message_non_envoye')); });
   });
@@ -953,8 +1115,9 @@ function appendDM(m, lastDay) {
     const mine = m.auteur_id === state.me.id;
     const el = document.createElement('div');
     el.className = `bulle-ligne${mine ? ' moi' : ''}`;
-    el.innerHTML = `${mine ? '' : avatar(m.auteur_id, m.auteur_nom, 'petit')}<div><div class="bulle"></div><div class="bulle-meta">${esc(fmt.time.format(d))}</div></div>`;
+    el.innerHTML = `${mine ? '' : avatar(m.auteur_id, m.auteur_nom, 'petit')}<div><div class="bulle"></div>${attachmentHtml(m)}<div class="bulle-meta">${esc(fmt.time.format(d))}</div></div>`;
     $('.bulle', el).textContent = m.contenu;
+    if (!m.contenu) $('.bulle', el).remove();
     feed.append(el);
   }
   feed.scrollTop = feed.scrollHeight;
@@ -1102,7 +1265,7 @@ function openDialog(id, onSubmit, prepare) {
       await onSubmit(Object.fromEntries(new FormData(form)));
       dlg.close();
     } catch (err) {
-      $('.erreur', dlg).textContent = err.message;
+      $('.erreur', dlg).textContent = err.garder ? '' : err.message;
     } finally { button.disabled = false; }
   };
 }
@@ -1336,7 +1499,7 @@ async function loadParticipants(m) {
       <h3>${t('participants')}</h3>
       <p class="note">${esc(t('toute_equipe', { equipe: p.equipe.nom, n: p.equipe.membres.length }))}</p>
       ${p.invites.length ? `<div class="choix-selection">${p.invites.map((x) => `<span class="puce-personne">${esc(x.nom)}${p.peutModifier ? `<button type="button" data-retirer-invite="${x.id}" aria-label="${esc(t('retirer_nom', { nom: x.nom }))}">×</button>` : ''}</span>`).join('')}</div>` : ''}
-      ${p.peutModifier ? `<button class="btn btn-contour" id="btn-ajout-participants" style="justify-self:start">${ICONES.inviter}<span>${t('ajouter_participants')}</span></button>` : ''}`;
+      ${p.peutModifier ? `<button class="btn btn-contour a-gauche" id="btn-ajout-participants">${ICONES.inviter}<span>${t('ajouter_participants')}</span></button>` : ''}`;
     $$('[data-retirer-invite]', zone).forEach((b) => b.addEventListener('click', async () => {
       try { await api(`/seances/${m.id}/participants/${b.dataset.retirerInvite}`, { method: 'DELETE' }); loadParticipants(m); refreshMeetingViews(); }
       catch (err) { toast(err.message); }
@@ -1436,10 +1599,15 @@ const tokenInUrl = () => (location.pathname.match(/^\/r\/([\w-]{12,})/) || locat
 function launch() {
   const jeton = tokenInUrl();
   if (jeton) return showGuest(jeton);
+  const reset = resetTokenInUrl();
+  if (reset) return showReset(reset);
   api('/auth/moi')
     .then(start)
     .catch(() => { showScreen('ecran-auth'); setAuthMode('connexion'); });
 }
-window.addEventListener('hashchange', () => { if (tokenInUrl()) showGuest(tokenInUrl()); });
+window.addEventListener('hashchange', () => {
+  if (tokenInUrl()) showGuest(tokenInUrl());
+  else if (resetTokenInUrl()) showReset(resetTokenInUrl());
+});
 translatePage();
 launch();

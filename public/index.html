@@ -14,7 +14,7 @@
   <!-- ============ Connexion ============ -->
   <main id="ecran-auth" class="auth" hidden>
     <section class="auth-marque">
-      <div class="marque"><span class="marque-ar" lang="ar">ندوة</span><span class="marque-lat">Nadwa</span></div>
+      <div class="marque"><span class="logo-nom" data-logo></span></div>
       <div class="auth-accroche">
         <h1 data-i18n="accroche"></h1>
         <p data-i18n="slogan"></p>
@@ -39,6 +39,7 @@
           <label data-inscription hidden><span data-i18n="nom_complet"></span><input name="nom" autocomplete="name"></label>
           <label><span data-i18n="email"></span><input name="email" type="email" required autocomplete="email" dir="ltr" placeholder="nom@exemple.com"></label>
           <label><span data-i18n="mot_de_passe"></span><input name="mot_de_passe" type="password" required minlength="8" autocomplete="current-password"></label>
+          <button type="button" class="btn-lien lien-oubli" id="btn-oubli" data-i18n="mdp_oublie"></button>
           <p class="erreur" id="auth-erreur" role="alert"></p>
           <button class="btn btn-accent btn-grand" type="submit" id="auth-soumettre"></button>
         </form>
@@ -55,7 +56,7 @@
   <!-- ============ Avant d'entrer dans une réunion (membres et invités) ============ -->
   <main id="ecran-reunion" class="avant-reunion" hidden>
     <header class="avant-haut">
-      <span class="marque-ar marque-sombre" lang="ar">ندوة</span>
+      <span class="logo-nom marque-sombre" data-logo></span>
       <div class="avant-haut-droite">
         <select class="choix-langue" data-i18n-aria="langue"></select>
         <button class="btn-lien" id="avant-retour" data-i18n="retour"></button>
@@ -67,7 +68,7 @@
   <!-- ============ Application ============ -->
   <div id="ecran-app" class="app" hidden>
     <nav class="rail" data-i18n-aria="nav_principale">
-      <span class="rail-logo" lang="ar" aria-hidden="true">ندوة</span>
+      <span class="rail-logo" data-logo aria-hidden="true"></span>
       <button class="rail-btn" data-vue="conversation">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>
         <span data-i18n="conversation"></span>
@@ -178,6 +179,46 @@
       </div>
     </form>
   </dialog>
+
+  <dialog id="dlg-oubli">
+    <form>
+      <h2 data-i18n="mdp_oublie"></h2>
+      <p class="note" data-i18n="oubli_texte"></p>
+      <label><span data-i18n="email"></span><input name="email" type="email" required dir="ltr" autocomplete="email"></label>
+      <p class="message-info" id="oubli-envoye" hidden data-i18n="oubli_envoye"></p>
+      <p class="erreur" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-contour" data-fermer data-i18n="fermer"></button>
+        <button type="submit" class="btn btn-accent" data-i18n="envoyer_lien"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-reinit">
+    <form>
+      <h2 data-i18n="reinit_titre"></h2>
+      <label><span data-i18n="nouveau_mdp_obl"></span><input name="mot_de_passe" type="password" required minlength="8" autocomplete="new-password"></label>
+      <label><span data-i18n="confirmer_mdp"></span><input name="confirmation" type="password" required minlength="8" autocomplete="new-password"></label>
+      <p class="erreur" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="submit" class="btn btn-accent" data-i18n="enregistrer"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-dossier">
+    <form>
+      <h2 data-i18n="nouveau_dossier"></h2>
+      <label><span data-i18n="nom_dossier"></span><input name="nom" required maxlength="120"></label>
+      <p class="erreur" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-contour" data-fermer data-i18n="annuler"></button>
+        <button type="submit" class="btn btn-accent" data-i18n="creer"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <input type="file" id="choix-fichiers" multiple hidden>
 
   <dialog id="dlg-nouvelle-conv">
     <form>

@@ -132,6 +132,34 @@ CREATE TABLE IF NOT EXISTS messages_directs (
   cree_le          TEXT NOT NULL DEFAULT ${MAINTENANT}
 );
 CREATE INDEX IF NOT EXISTS idx_conv_membres_utilisateur ON conversation_membres(utilisateur_id);
+
+-- Demandes de réinitialisation du mot de passe (on ne garde que l'empreinte du jeton).
+CREATE TABLE IF NOT EXISTS reinitialisations (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  utilisateur_id  INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  jeton_hash      TEXT NOT NULL UNIQUE,
+  expire_le       TEXT NOT NULL,
+  utilise         INTEGER NOT NULL DEFAULT 0,
+  cree_le         TEXT NOT NULL DEFAULT ${MAINTENANT}
+);
+
+-- Fichiers et dossiers (bibliothèque de documents de chaque canal, comme SharePoint dans Teams),
+-- et pièces jointes des conversations directes.
+CREATE TABLE IF NOT EXISTS fichiers (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  canal_id         INTEGER REFERENCES canaux(id) ON DELETE CASCADE,
+  conversation_id  INTEGER REFERENCES conversations(id) ON DELETE CASCADE,
+  parent_id        INTEGER REFERENCES fichiers(id) ON DELETE CASCADE,  -- dossier parent
+  est_dossier      INTEGER NOT NULL DEFAULT 0,
+  nom              TEXT NOT NULL,
+  type_mime        TEXT,
+  taille           INTEGER NOT NULL DEFAULT 0,
+  stockage         TEXT,                                              -- nom du fichier sur le disque
+  utilisateur_id   INTEGER REFERENCES utilisateurs(id) ON DELETE SET NULL,
+  cree_le          TEXT NOT NULL DEFAULT ${MAINTENANT}
+);
+CREATE INDEX IF NOT EXISTS idx_fichiers_canal ON fichiers(canal_id, parent_id);
+CREATE INDEX IF NOT EXISTS idx_fichiers_conversation ON fichiers(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_messages_directs ON messages_directs(conversation_id, id);
 CREATE INDEX IF NOT EXISTS idx_adhesions_utilisateur ON adhesions(utilisateur_id);
 CREATE INDEX IF NOT EXISTS idx_classes_espace ON classes(espace_id);
@@ -149,6 +177,13 @@ if (!colonnes('seances').includes('jeton_invite')) {
   db.exec('ALTER TABLE seances ADD COLUMN jeton_invite TEXT'); // lien d'invitation sans compte
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_seances_jeton ON seances(jeton_invite)');
 }
+
+// Langue préférée de chaque personne (pour les e-mails).
+if (!colonnes('utilisateurs').includes('langue')) db.exec("ALTER TABLE utilisateurs ADD COLUMN langue TEXT NOT NULL DEFAULT 'en'");
+
+// Pièce jointe d'un message (canal ou conversation directe).
+if (!colonnes('messages').includes('fichier_id')) db.exec('ALTER TABLE messages ADD COLUMN fichier_id INTEGER REFERENCES fichiers(id) ON DELETE SET NULL');
+if (!colonnes('messages_directs').includes('fichier_id')) db.exec('ALTER TABLE messages_directs ADD COLUMN fichier_id INTEGER REFERENCES fichiers(id) ON DELETE SET NULL');
 
 // Bases antérieures à l'ajout de l'organisateur des réunions : on ajoute la colonne.
 if (!colonnes('seances').includes('organisateur_id')) {

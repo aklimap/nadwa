@@ -35,7 +35,7 @@ routeur.post('/:id/rejoindre', async (req, res, next) => {
       return res.status(403).json({ erreur: t(req, 'reunion_terminee') });
     }
     const { micro = true, camera = true } = req.body || {};
-    res.json(await visio.lienVisio({ seance, classe, utilisateur: u, moderateur, langue: langueDe(req), micro: micro !== false, camera: camera !== false, logo: `${req.protocol}://${req.get('host')}/logo-nadwa.svg` }));
+    res.json(await visio.lienVisio({ seance, classe, utilisateur: u, moderateur, langue: langueDe(req), micro: micro !== false, camera: camera !== false, logo: `${req.protocol}://${req.get('host')}/logo-nadwa${langueDe(req) === 'ar' ? '-ar' : ''}.svg` }));
   } catch (err) {
     next(err);
   }
