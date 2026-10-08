@@ -190,6 +190,12 @@ if (!colonnes('seances').includes('organisateur_id')) {
   db.exec('ALTER TABLE seances ADD COLUMN organisateur_id INTEGER REFERENCES utilisateurs(id) ON DELETE SET NULL');
 }
 
+// Clavardage d'équipe : une conversation de groupe rattachée à chaque équipe.
+if (!colonnes('conversations').includes('classe_id')) {
+  db.exec('ALTER TABLE conversations ADD COLUMN classe_id INTEGER REFERENCES classes(id) ON DELETE CASCADE');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_classe ON conversations(classe_id)');
+}
+
 // Statut de présence choisi par la personne : auto (Disponible), absent, non_disponible.
 if (!colonnes('utilisateurs').includes('statut_choisi')) db.exec("ALTER TABLE utilisateurs ADD COLUMN statut_choisi TEXT NOT NULL DEFAULT 'auto'");
 

@@ -541,6 +541,7 @@ function renderTeamList() {
         ${avatar(team.id, team.nom, 'carre')}
         <span class="item-texte"><strong>${esc(team.nom)}</strong><small>${esc(team.module || t('proprietaire_nom', { nom: team.responsable_nom }))}</small></span>
         ${team.en_direct ? `<span class="point-en-cours" title="${esc(t('reunion_en_cours_court'))}"></span>` : ''}
+        ${!team.en_direct && teamChat(team.id)?.non_lus && !(team.id === state.teamId && state.tab === 'clavardage') ? `<span class="non-lu-point" title="${esc(t('nouveaux_messages'))}"></span>` : ''}
       </button>
       ${team.id === state.teamId && state.detail?.classe.id === team.id ? channelList() : ''}
     </li>`).join('');
@@ -592,7 +593,9 @@ let openToken = 0;
 async function openTeam(id, { keep = false } = {}) {
   const token = ++openToken;
   const sameTeam = state.teamId === id;
-  if (!sameTeam) { state.tab = 'publications'; state.unread.clear(); state.fileFolder = null; }
+  if (!sameTeam) { state.tab = state.ongletSuivant || 'publications'; state.unread.clear(); state.fileFolder = null; }
+  else if (state.ongletSuivant) state.tab = state.ongletSuivant;
+  state.ongletSuivant = null;
   state.teamId = id;
   renderTeamList();
   state.socket?.emit('classe:rejoindre', id);
@@ -600,6 +603,7 @@ async function openTeam(id, { keep = false } = {}) {
     const [detail, meetings, channels] = await Promise.all([api(`/classes/${id}`), api(`/classes/${id}/seances`), api(`/classes/${id}/canaux`)]);
     if (token !== openToken) return;
     state.detail = detail; state.meetings = meetings; state.channels = channels;
+    if (!teamChat(id)) loadConversations().then(() => { if (state.teamId === id) renderTeamList(); });
     if (!sameTeam || !keep || !channels.some((c) => c.id === state.channelId)) state.channelId = channels[0]?.id ?? null;
     renderTeamList();
     renderTeam();
@@ -645,13 +649,16 @@ function renderTeam() {
       <div class="detail-ligne">
         <button class="btn-icone retour" id="btn-retour" aria-label="${esc(t('retour'))}">${ICONES.retour}</button>
         ${avatar(team.id, team.nom, 'carre grand')}
-        <div class="detail-titre"><h1>${esc(channel ? channelName(channel) : team.nom)}</h1><p>${esc(team.nom)}</p></div>
+        <div class="detail-titre">${state.tab === 'clavardage'
+          ? `<h1>${esc(team.nom)}</h1><p>${esc(t('clavardage_equipe'))}</p>`
+          : `<h1>${esc(channel ? channelName(channel) : team.nom)}</h1><p>${esc(team.nom)}</p>`}</div>
         ${isOwner ? `<button class="btn btn-contour" id="btn-inviter">${ICONES.inviter}<span>${t('inviter')}</span></button>` : ''}
         <button class="btn btn-accent" id="btn-reunion" aria-haspopup="true">${ICONES.video}<span>${t('reunion')}</span>${ICONES.chevron}</button>
         ${isOwner ? `<button class="btn-icone" id="btn-options-equipe" aria-haspopup="true" aria-label="${esc(t('options_equipe'))}" title="${esc(t('options_equipe'))}">${ICONES.options}</button>` : ''}
       </div>
       <div class="onglets" role="tablist">
         <button role="tab" data-onglet="publications" aria-selected="${state.tab === 'publications'}">${t('publications')}</button>
+        <button role="tab" data-onglet="clavardage" aria-selected="${state.tab === 'clavardage'}">${t('onglet_clavardage')}${teamChatUnread() ? '<span class="non-lu-point"></span>' : ''}</button>
         <button role="tab" data-onglet="fichiers" aria-selected="${state.tab === 'fichiers'}">${t('onglet_fichiers')}</button>
         <button role="tab" data-onglet="membres" aria-selected="${state.tab === 'membres'}">${t('onglet_membres')}</button>
       </div>
@@ -665,7 +672,10 @@ function renderTeam() {
     $('#btn-suppr-equipe', menu).addEventListener('click', () => { menu.hidden = true; deleteTeam(); });
   }));
   $$('[data-onglet]').forEach((b) => b.addEventListener('click', () => { state.tab = b.dataset.onglet; renderTeam(); }));
-  if (state.tab === 'membres') renderMembers(); else if (state.tab === 'fichiers') renderFiles(); else renderFeed();
+  if (state.tab === 'membres') renderMembers();
+  else if (state.tab === 'fichiers') renderFiles();
+  else if (state.tab === 'clavardage') renderTeamChat();
+  else renderFeed();
 }
 
 // Menu « Réunion » de l'équipe
@@ -674,6 +684,27 @@ $$('#menu-reunion [data-menu-action]').forEach((b) => b.addEventListener('click'
   if (b.dataset.menuAction === 'maintenant') meetNow(state.teamId);
   else openScheduler({ teamId: state.teamId });
 }));
+
+// ---------- Clavardage de l'équipe ----------
+// Une discussion de groupe instantanée avec tous les membres de l'équipe (comme le chat de Teams).
+const teamChat = (classeId) => state.convs.find((c) => c.classe_id === classeId);
+const teamChatUnread = () => (state.detail ? teamChat(state.detail.classe.id)?.non_lus || 0 : 0);
+
+async function renderTeamChat() {
+  const id = state.detail?.clavardage_id;
+  const zone = $('#zone-onglet');
+  if (!id) { zone.innerHTML = ''; return; }
+  zone.innerHTML = `<div class="clavardage">${chatHtml()}</div>`;
+  if (!teamChat(state.detail.classe.id)) await loadConversations();
+  await bindChat(id, () => teamChatOpen(id));
+  $('[data-onglet="clavardage"] .non-lu-point')?.remove();
+}
+
+async function openTeamChat(classeId) {
+  state.ongletSuivant = 'clavardage';
+  if (state.view !== 'classes') showView('classes', { teamId: classeId });
+  else openTeam(classeId);
+}
 
 function liveMeeting() { return state.meetings.find((m) => m.etat === 'en_direct'); }
 
@@ -1251,6 +1282,15 @@ async function openConversation(id) {
         <button class="btn-icone contour" id="appel-audio" aria-label="${esc(t('appel_audio'))}" title="${esc(t('appel_audio'))}">${ICONES.tel}</button>
       </div>
     </header>
+    ${chatHtml()}`;
+  $('#btn-retour-conv').addEventListener('click', backToList);
+  $('#appel-video').addEventListener('click', () => startCall(id, true));
+  $('#appel-audio').addEventListener('click', () => startCall(id, false));
+  await bindChat(id, () => state.convId === id && state.view === 'conversation');
+}
+
+/** Fil de messages et zone de saisie d'une conversation (messages directs ou clavardage d'équipe). */
+const chatHtml = () => `
     <div class="fil" id="fil-dm"><p class="chargement">${t('chargement_messages')}</p></div>
     <div class="compose"><form id="compose-dm">
       <button type="button" class="btn-joindre" id="joindre-dm" aria-label="${esc(t('joindre'))}" title="${esc(t('joindre'))}">${ICONES.trombone}</button>
@@ -1258,23 +1298,28 @@ async function openConversation(id) {
       <textarea id="champ-dm" rows="1" maxlength="4000" placeholder="${esc(t('ecrire_message'))}"></textarea>
       <button class="btn-envoyer" type="submit" aria-label="${esc(t('envoyer'))}">${ICONES.envoyer}</button>
     </form></div>`;
-  $('#btn-retour-conv').addEventListener('click', backToList);
-  $('#appel-video').addEventListener('click', () => startCall(id, true));
-  $('#appel-audio').addEventListener('click', () => startCall(id, false));
+
+async function bindChat(id, stillHere) {
   $('#joindre-dm').addEventListener('click', () => pickFiles(`/conversations/${id}/fichiers`));
   bindComposer($('#compose-dm'), (contenu, done) => {
     state.socket.emit('dm:envoyer', { conversationId: id, contenu }, (res) => { if (res?.ok) done(); else toast(res?.erreur || t('message_non_envoye')); });
   });
   try {
     const messages = await api(`/conversations/${id}/messages`);
-    if (state.convId !== id) return;
+    if (!stillHere()) return;
     const feed = $('#fil-dm');
     feed.innerHTML = messages.length ? '' : `<div class="fil-vide" id="fil-dm-vide">${t('dites_bonjour')}</div>`;
     let lastDay = null;
     messages.forEach((m) => { lastDay = appendDM(m, lastDay); });
     feed.scrollTop = feed.scrollHeight;
+    api(`/conversations/${id}/lu`, { method: 'POST' }).catch(() => {});
+    const c = state.convs.find((x) => x.id === id);
+    if (c && c.non_lus) { c.non_lus = 0; updateBadge(); renderTeamList(); }
   } catch (err) { toast(err.message); }
 }
+
+/** Le clavardage de l'équipe affichée est-il à l'écran ? */
+const teamChatOpen = (convId) => state.view === 'classes' && state.tab === 'clavardage' && state.detail?.clavardage_id === convId;
 
 /** Ajoute un message direct au fil ; renvoie le jour affiché (pour les séparateurs). */
 function appendDM(m, lastDay) {
@@ -1295,7 +1340,9 @@ function appendDM(m, lastDay) {
     const mine = m.auteur_id === state.me.id;
     const el = document.createElement('div');
     el.className = `bulle-ligne${mine ? ' moi' : ''}`;
-    el.innerHTML = `${mine ? '' : avatar(m.auteur_id, m.auteur_nom, 'petit')}<div><div class="bulle"></div>${attachmentHtml(m)}<div class="bulle-meta">${esc(fmt.time.format(d))}</div></div>`;
+    const conv = state.convs.find((x) => x.id === m.conversation_id);
+    const group = !mine && conv && (conv.classe_id || conv.membres.length > 1);
+    el.innerHTML = `${mine ? '' : avatar(m.auteur_id, m.auteur_nom, 'petit')}<div>${group ? `<div class="bulle-auteur">${esc(m.auteur_nom)}</div>` : ''}<div class="bulle"></div>${attachmentHtml(m)}<div class="bulle-meta">${esc(fmt.time.format(d))}</div></div>`;
     $('.bulle', el).textContent = m.contenu;
     if (!m.contenu) $('.bulle', el).remove();
     feed.append(el);
@@ -1307,7 +1354,7 @@ function appendDM(m, lastDay) {
 
 function onDirectMessage(m) {
   const c = state.convs.find((x) => x.id === m.conversation_id);
-  const viewing = state.view === 'conversation' && state.convId === m.conversation_id && !$('#ecran-app').hidden;
+  const viewing = ((state.view === 'conversation' && state.convId === m.conversation_id) || teamChatOpen(m.conversation_id)) && !$('#ecran-app').hidden;
   if (viewing) {
     appendDM(m, $('#fil-dm')?.dataset.jour || null);
     api(`/conversations/${m.conversation_id}/lu`, { method: 'POST' }).catch(() => {});
@@ -1319,12 +1366,17 @@ function onDirectMessage(m) {
     state.convs.sort((a, b) => (b.dernier?.cree_le || '').localeCompare(a.dernier?.cree_le || ''));
     updateBadge();
     if (state.view === 'conversation') renderConvList();
+    if (c.classe_id) {
+      renderTeamList();
+      const tab = !viewing && c.classe_id === state.teamId && $('[data-onglet="clavardage"]');
+      if (tab && !$('.non-lu-point', tab)) tab.insertAdjacentHTML('beforeend', '<span class="non-lu-point"></span>');
+    }
   }
   if (!viewing && m.auteur_id !== state.me.id) {
     const label = m.type === 'appel' ? t('appel_lance_par', { nom: m.auteur_nom }) : t('nouveau_message_de', { nom: m.auteur_nom });
     toast(label, m.type === 'appel'
       ? { label: t('rejoindre_reunion'), run: () => joinCall(m.conversation_id) }
-      : { label: t('ouvrir'), run: () => showView('conversation', { convId: m.conversation_id }) });
+      : { label: t('ouvrir'), run: () => (c?.classe_id ? openTeamChat(c.classe_id) : showView('conversation', { convId: m.conversation_id })) });
   }
 }
 

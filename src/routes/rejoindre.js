@@ -6,7 +6,7 @@
 const express = require('express');
 const db = require('../db');
 const { exigerConnexion } = require('../auth');
-const { roleDansEspace, estResponsable } = require('../metier');
+const { roleDansEspace, estResponsable, clavardageEquipe } = require('../metier');
 const { t } = require('../i18n');
 
 const routeur = express.Router();
@@ -31,6 +31,7 @@ routeur.post('/', exigerConnexion, (req, res) => {
       db.prepare('INSERT OR IGNORE INTO membres (classe_id, utilisateur_id) VALUES (?, ?)').run(classe.id, u.id);
     }
   })();
+  clavardageEquipe(classe); // le nouveau membre rejoint le clavardage de l'équipe
   res.json({ type: 'classe', espace_id: classe.espace_id, classe_id: classe.id, nom: classe.nom });
 });
 

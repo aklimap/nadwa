@@ -555,3 +555,9 @@ fieldset.participants legend { padding: 0; margin-bottom: 4px; font-weight: 600;
 [data-statut="hors_ligne"] { --presence-couleur: var(--surface, #FFFFFF); outline: 2px solid #98A2B3; outline-offset: -2px; }
 .menu .presence-pastille { margin-inline: 4px 2px; }
 .menu button.danger { color: var(--danger); }
+
+/* ---------- Clavardage de l'équipe ---------- */
+.clavardage { display: flex; flex-direction: column; flex: 1; min-height: 0; height: 100%; }
+.clavardage .fil { flex: 1; min-height: 0; overflow-y: auto; }
+[role="tab"] .non-lu-point { margin-inline-start: 6px; vertical-align: middle; }
+.bulle-auteur { font-size: 12px; font-weight: 600; color: var(--encre-2); margin: 0 0 2px 2px; }

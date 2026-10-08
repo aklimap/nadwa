@@ -18,7 +18,7 @@ const SQL_DM = `
 
 /** Résumé d'une conversation pour un utilisateur : autres membres, dernier message, non lus. */
 function resume(conversationId, moiId) {
-  const c = db.prepare('SELECT id, nom, maj_le FROM conversations WHERE id = ?').get(conversationId);
+  const c = db.prepare('SELECT id, nom, maj_le, classe_id FROM conversations WHERE id = ?').get(conversationId);
   const membres = db.prepare(`
     SELECT u.id, u.nom, u.email FROM conversation_membres m JOIN utilisateurs u ON u.id = m.utilisateur_id
     WHERE m.conversation_id = ? AND u.id <> ? ORDER BY u.nom`).all(conversationId, moiId);

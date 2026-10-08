@@ -8,7 +8,7 @@ const { t } = require('../i18n');
 const {
   roleDansEspace, classeAccessible, estResponsable, classePourUtilisateur, avecEtat,
   nouveauCodeInvitation, nouvelIdReunion, OUVERTURE_AVANT_MIN,
-  creerCanalGeneral, canauxDe, SQL_CANAL, SQL_SEANCE, ajouterInvites, jetonInvite,
+  creerCanalGeneral, canauxDe, SQL_CANAL, SQL_SEANCE, ajouterInvites, jetonInvite, clavardageEquipe,
 } = require('../metier');
 
 const routeur = express.Router();
@@ -98,6 +98,7 @@ routeur.get('/:id', (req, res) => {
     responsable,
     membres,
     estResponsable: estResponsable(req.utilisateur, classe),
+    clavardage_id: clavardageEquipe(classe, req.utilisateur), // conversation de groupe de l'équipe
   });
 });
 
@@ -125,6 +126,7 @@ routeur.delete('/:id/membres/:utilisateurId', (req, res) => {
   if (!classe) return;
   if (!estResponsable(req.utilisateur, classe)) return res.status(403).json({ erreur: t(req, 'retirer_membre_owner') });
   db.prepare('DELETE FROM membres WHERE classe_id = ? AND utilisateur_id = ?').run(classe.id, Number(req.params.utilisateurId));
+  clavardageEquipe(classe);
   res.json({ ok: true });
 });
 

@@ -261,6 +261,8 @@ window.NADWA_TEXTES = {
 
   // Fichiers (bibliothèque de documents)
   onglet_fichiers: ['Files', 'Fichiers', 'الملفات'],
+  onglet_clavardage: ['Chat', 'Clavardage', 'دردشة'],
+  clavardage_equipe: ['Team chat: everyone in the team', "Clavardage de l'équipe : tous les membres", 'دردشة الفريق: جميع الأعضاء'],
   televerser: ['Upload', 'Téléverser', 'رفع ملفات'],
   nouveau_dossier: ['New folder', 'Nouveau dossier', 'مجلد جديد'],
   nom_dossier: ['Folder name', 'Nom du dossier', 'اسم المجلد'],

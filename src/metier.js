@@ -125,6 +125,41 @@ function ajouterInvites(seance, espaceId, ids) {
 const peutAnimer = (utilisateur, seance, classe) =>
   seance.organisateur_id === utilisateur.id || estResponsable(utilisateur, classe);
 
+// ---------- Clavardage d'équipe ----------
+
+/**
+ * Conversation de groupe de l'équipe (créée au besoin), avec pour membres le propriétaire
+ * et les membres de l'équipe. Un administrateur de l'organisation qui l'ouvre y est ajouté.
+ * Renvoie l'identifiant de la conversation.
+ */
+function clavardageEquipe(classe, utilisateur = null) {
+  return db.transaction(() => {
+    let conv = db.prepare('SELECT id, nom FROM conversations WHERE classe_id = ?').get(classe.id);
+    if (!conv) {
+      const { lastInsertRowid } = db.prepare('INSERT INTO conversations (nom, cree_par, classe_id) VALUES (?, ?, ?)')
+        .run(classe.nom, classe.responsable_id, classe.id);
+      conv = { id: Number(lastInsertRowid), nom: classe.nom };
+    } else if (conv.nom !== classe.nom) {
+      db.prepare('UPDATE conversations SET nom = ? WHERE id = ?').run(classe.nom, conv.id);
+    }
+    const voulus = new Set(db.prepare('SELECT utilisateur_id AS id FROM membres WHERE classe_id = ?').all(classe.id).map((m) => m.id));
+    voulus.add(classe.responsable_id);
+    if (utilisateur) voulus.add(utilisateur.id);
+    const actuels = db.prepare('SELECT utilisateur_id AS id FROM conversation_membres WHERE conversation_id = ?').all(conv.id).map((m) => m.id);
+    const dernier = db.prepare('SELECT MAX(id) AS n FROM messages_directs WHERE conversation_id = ?').get(conv.id).n || 0;
+    const ajouter = db.prepare('INSERT OR IGNORE INTO conversation_membres (conversation_id, utilisateur_id, lu_jusqua) VALUES (?, ?, ?)');
+    for (const id of voulus) if (!actuels.includes(id)) ajouter.run(conv.id, id, dernier);
+    // Retirer les personnes qui ont quitté l'équipe (sauf les administrateurs de l'organisation).
+    const retirer = db.prepare('DELETE FROM conversation_membres WHERE conversation_id = ? AND utilisateur_id = ?');
+    for (const id of actuels) {
+      if (voulus.has(id)) continue;
+      const admin = db.prepare("SELECT 1 FROM adhesions WHERE espace_id = ? AND utilisateur_id = ? AND role = 'admin'").get(classe.espace_id, id);
+      if (!admin) retirer.run(conv.id, id);
+    }
+    return conv.id;
+  })();
+}
+
 // ---------- Codes ----------
 
 // Sans caractères ambigus (0/O, 1/I). 32 symboles : tirage sans biais sur un octet.
@@ -233,6 +268,7 @@ module.exports = {
   avecEtat,
   SQL_SEANCE,
   peutAnimer,
+  clavardageEquipe,
   seanceAccessible,
   ajouterInvites,
   nouveauCodeInvitation,
