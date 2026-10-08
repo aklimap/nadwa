@@ -68,7 +68,7 @@ window.NADWA_TEXTES = {
   plus_canal: ['+ Add channel', '+ Ajouter un canal', '+ إضافة قناة'],
   ajouter_canal: ['Add a channel', 'Ajouter un canal', 'إضافة قناة'],
   nom_canal: ['Channel name', 'Nom du canal', 'اسم القناة'],
-  ex_canal: ['e.g. Lab work, Project group 1', 'ex. Travaux pratiques, Groupe projet 1', 'مثال: الأعمال التطبيقية، مجموعة المشروع 1'],
+  ex_canal: ['e.g. Projects, Follow-up', 'ex. Projets, Suivi des dossiers', 'مثال: المشاريع، متابعة الملفات'],
   ex_description_canal: ['What this channel is about', 'Le sujet de ce canal', 'موضوع هذه القناة'],
   case_annonces: ['Announcements channel: only team owners can post', "Canal d'annonces : seuls les propriétaires de l'équipe publient", 'قناة إعلانات: لا ينشر فيها إلا مالكو الفريق'],
   ajouter: ['Add', 'Ajouter', 'إضافة'],

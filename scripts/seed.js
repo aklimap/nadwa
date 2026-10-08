@@ -71,7 +71,7 @@ db.transaction(() => {
   planifier.run(classe, 'Nucleic acid extraction', ilYa5min, 90, nouvelIdReunion(classe));
   planifier.run(classe, 'PCR and RT-PCR: principles', demainA(9), 90, nouvelIdReunion(classe));
   const annonces = creerCanal(classe, 'Announcements', 'Dates, schedule changes and exams', 1);
-  const tp = creerCanal(classe, 'Lab work', 'Protocols, questions and results from lab sessions');
+  const tp = creerCanal(classe, 'Projects', 'Ongoing work, questions and results');
   ecrire(general(classe), prof, 'Welcome to the team. Slides for the first lecture will be shared before the meeting.');
   ecrire(general(classe), etudiants[0], 'Thanks! Will the meeting be recorded?');
   ecrire(annonces, prof, 'The mid-term exam is on the last Saturday of the month.');
