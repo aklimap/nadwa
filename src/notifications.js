@@ -1,9 +1,9 @@
 /**
  * Notifications : e-mail (SMTP, ex. Brevo) et notifications « push » sur téléphone et ordinateur.
  *
- * - Rappel de réunion 30 minutes avant le début, pour l'équipe et les personnes invitées.
- * - Les messages ne sont pas notifiés (choix de l'exploitant). messageDirect() et publication()
- *   restent disponibles : il suffit de les rappeler à la création d'un message pour les réactiver.
+ * - Messages (conversations, clavardage d'équipe, canaux) : notification sur le téléphone seulement,
+ *   pas d'e-mail.
+ * - Rappel de réunion 30 minutes avant le début : téléphone et e-mail.
  *
  * Les notifications push sont gratuites (Web Push : Chrome, Edge, Firefox, Android, et l'appli
  * Android Nadwa). Les clés VAPID sont créées au premier démarrage et gardées dans la base.
@@ -72,14 +72,14 @@ const extrait = (texte, n = 140) => { const s = String(texte || '').replace(/\s+
  * Prévient une personne. fil = clé de regroupement des e-mails (conversation, canal…) ;
  * sans fil, l'e-mail part toujours (rappels de réunion).
  */
-function prevenir(destinataire, { titre, texte, chemin, fil = null, sujet, bouton, tag, toujours = false }) {
+function prevenir(destinataire, { titre, texte, chemin, fil = null, sujet, bouton, tag, toujours = false, email = true }) {
   const lien = `${urlBase()}${chemin}`;
   // Push : pas pour une personne active dans Nadwa (elle voit déjà le message) ni en « Non disponible ».
   // Les rappels de réunion (toujours = true) partent dans tous les cas.
   const statut = require('./temps-reel').statutDe(destinataire.id);
   const occupe = ['disponible', 'en_reunion', 'non_disponible'].includes(statut);
   if (destinataire.notif_push && (toujours || !occupe)) pousser(destinataire.id, { titre, texte, url: chemin, tag }).catch(() => {});
-  if (!destinataire.notif_email || !destinataire.email) return;
+  if (!email || !destinataire.notif_email || !destinataire.email) return;
   if (fil) {
     const cle = `${destinataire.id}:${fil}`;
     const avant = derniersEmails.get(cle) || 0;
@@ -114,7 +114,7 @@ function messageDirect(message) {
         ? t(langue, 'notif_appel', { nom: message.auteur_nom })
         : lieu ? t(langue, 'notif_message_dans', { nom: message.auteur_nom, lieu }) : t(langue, 'notif_message_de', { nom: message.auteur_nom });
       const texte = appel ? t(langue, 'notif_appel_texte') : extrait(message.contenu || message.fichier_nom || '');
-      prevenir(d, { titre, texte, chemin, fil: `conv:${conv.id}`, tag: `conv-${conv.id}`, bouton: t(langue, appel ? 'notif_rejoindre' : 'notif_repondre') });
+      prevenir(d, { titre, texte, chemin, fil: `conv:${conv.id}`, tag: `conv-${conv.id}`, email: false, bouton: t(langue, appel ? 'notif_rejoindre' : 'notif_repondre') });
     }
   } catch (err) { console.error('Notification de message :', err.message); }
 }
@@ -134,7 +134,7 @@ function publication(message) {
         titre: t(langue, 'notif_message_dans', { nom: message.auteur_nom, lieu }),
         texte: extrait(message.contenu || message.fichier_nom || ''),
         chemin: `/?equipe=${classe.id}&canal=${canal.id}`,
-        fil: `canal:${canal.id}`, tag: `canal-${canal.id}`, bouton: t(langue, 'notif_repondre'),
+        fil: `canal:${canal.id}`, tag: `canal-${canal.id}`, email: false, bouton: t(langue, 'notif_repondre'),
       });
     }
   } catch (err) { console.error('Notification de publication :', err.message); }

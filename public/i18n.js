@@ -120,7 +120,7 @@ window.NADWA_TEXTES = {
   active: ['On', 'Activées', 'مفعّلة'],
   inactive: ['Off', 'Désactivées', 'متوقفة'],
   activer: ['Turn on', 'Activer', 'تفعيل'],
-  notif_proposer: ['Get a reminder on this device 30 minutes before your meetings?', 'Recevoir un rappel sur cet appareil 30 minutes avant vos réunions ?', 'هل تريد تلقي تذكير على هذا الجهاز قبل اجتماعاتك بـ30 دقيقة؟'],
+  notif_proposer: ['Get notified of messages and meetings on this device?', 'Être prévenu des messages et des réunions sur cet appareil ?', 'هل تريد تلقي إشعارات الرسائل والاجتماعات على هذا الجهاز؟'],
   notif_activees: ['Notifications are on for this device.', 'Notifications activées sur cet appareil.', 'تم تفعيل الإشعارات على هذا الجهاز.'],
   notif_desactivees: ['Notifications are off for this device.', 'Notifications désactivées sur cet appareil.', 'تم إيقاف الإشعارات على هذا الجهاز.'],
   notif_refuse: ['Notifications are blocked: allow them in your browser settings for nadwalive.com.', 'Notifications bloquées : autorisez-les dans les réglages du navigateur pour nadwalive.com.', 'الإشعارات محظورة: اسمح بها في إعدادات المتصفح لموقع nadwalive.com.'],

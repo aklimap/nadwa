@@ -100,6 +100,7 @@ routeur.post('/canaux/:id/fichiers', brut, (req, res) => {
       .run(classe.id, canal.id, req.utilisateur.id, contenu, r.fichier.id);
     const message = db.prepare(`${SQL_MESSAGE} WHERE m.id = ?`).get(lastInsertRowid);
     req.app.get('io')?.to(`classe:${classe.id}`).emit('message:nouveau', message);
+    require('../notifications').publication(message);
   }
   req.app.get('io')?.to(`classe:${classe.id}`).emit('fichiers:maj', { canal_id: canal.id });
   res.status(201).json(r.fichier);

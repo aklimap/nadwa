@@ -56,7 +56,7 @@ const MESSAGES = {
   notif_voir_reunion: ['Open the meeting', 'Ouvrir la réunion', 'فتح الاجتماع'],
   notif_abonnement_invalide: ['This device could not be registered for notifications.', "Cet appareil n'a pas pu être inscrit aux notifications.", 'تعذّر تسجيل هذا الجهاز لتلقي الإشعارات.'],
   notif_essai_titre: ['Notifications are on', 'Notifications activées', 'تم تفعيل الإشعارات'],
-  notif_essai_texte: ["You'll get a reminder here 30 minutes before your meetings.", 'Vous recevrez ici un rappel 30 minutes avant vos réunions.', 'ستصلك هنا تذكيرات قبل اجتماعاتك بـ30 دقيقة.'],
+  notif_essai_texte: ["You'll be notified of messages and meetings on this device.", 'Vous serez prévenu ici des messages et des réunions.', 'ستصلك على هذا الجهاز إشعارات الرسائل والاجتماعات.'],
   suppr_equipe_owner: ['Only a team owner can delete this team.', "Seul un propriétaire de l'équipe peut la supprimer.", 'لا يمكن حذف هذا الفريق إلا من قِبل أحد مالكيه.'],
   terminer_reunion_owner: ['Only the organizer can end this meeting.', "Seul l'organisateur peut terminer cette réunion.", 'لا يمكن إنهاء هذا الاجتماع إلا من قِبل منظِّمه.'],
   participants_hote: ['Only the organizer or a team owner can change the participants.', "Seuls l'organisateur ou un propriétaire de l'équipe peuvent modifier les participants.", 'لا يمكن تعديل المشاركين إلا من قِبل المنظِّم أو أحد مالكي الفريق.'],
