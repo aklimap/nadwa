@@ -161,3 +161,10 @@ function enregistrerMesure() {
 }
 setInterval(() => { try { enregistrerMesure(); } catch (err) { console.error('Mesure de capacité :', err.message); } }, 60_000).unref();
 module.exports.mesurerCapacite = mesurerCapacite;
+
+/** Nombre de personnes (comptes Nadwa) actuellement dans une salle de visio. */
+module.exports.participantsSalle = (salle, sauf = null) => {
+  let n = 0;
+  for (const [id, p] of presences) if (id !== sauf && [...p.sockets.values()].some((e) => e.reunion === salle)) n += 1;
+  return n;
+};

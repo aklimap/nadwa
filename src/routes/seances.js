@@ -5,6 +5,7 @@ const { exigerConnexion } = require('../auth');
 const { etatSeance, peutAnimer, seanceAccessible, ajouterInvites, jetonInvite, OUVERTURE_AVANT_MIN } = require('../metier');
 const { annoncerSeances } = require('./classes');
 const { t, langueDe } = require('../i18n');
+const limites = require('../limites');
 
 const routeur = express.Router();
 routeur.use(exigerConnexion);
@@ -34,6 +35,9 @@ routeur.post('/:id/rejoindre', async (req, res, next) => {
     if (!moderateur && etat === 'terminee') {
       return res.status(403).json({ erreur: t(req, 'reunion_terminee') });
     }
+    const refus = limites.controlerEntree(seance, classe, langueDe(req), u.id);
+    if (refus) return res.status(403).json({ erreur: refus });
+    limites.noterOuverture(seance);
     const { micro = true, camera = true } = req.body || {};
     res.json(await visio.lienVisio({ seance, classe, utilisateur: u, moderateur, langue: langueDe(req), micro: micro !== false, camera: camera !== false, logo: `${req.protocol}://${req.get('host')}/logo-nadwa${langueDe(req) === 'ar' ? '-ar' : ''}.svg` }));
   } catch (err) {

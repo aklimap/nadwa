@@ -22,6 +22,7 @@
       <div class="auth-accroche">
         <h1 data-i18n="accroche"></h1>
         <p data-i18n="slogan"></p>
+        <p class="auth-gratuit" id="auth-gratuit" hidden></p>
       </div>
       <div class="auth-puces">
         <span data-i18n="conversation"></span>
@@ -44,6 +45,7 @@
           <label><span data-i18n="email"></span><input name="email" type="email" required autocomplete="email" dir="ltr" placeholder="nom@exemple.com"></label>
           <label><span data-i18n="mot_de_passe"></span><input name="mot_de_passe" type="password" required minlength="8" autocomplete="current-password"></label>
           <button type="button" class="btn-lien lien-oubli" id="btn-oubli" data-i18n="mdp_oublie"></button>
+          <label class="case" data-inscription hidden><input type="checkbox" name="accepte_conditions"><span data-liens-conditions></span></label>
           <p class="erreur" id="auth-erreur" role="alert"></p>
           <button class="btn btn-accent btn-grand" type="submit" id="auth-soumettre"></button>
         </form>
@@ -54,6 +56,7 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1"/><path d="M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1"/></svg>
           <span data-i18n="rejoindre_avec_lien"></span>
         </button>
+        <p class="liens-legaux"><a data-lien-legal="conditions" target="_blank" rel="noopener" data-i18n="conditions_utilisation"></a> · <a data-lien-legal="confidentialite" target="_blank" rel="noopener" data-i18n="politique_confidentialite"></a></p>
       </div>
     </section>
   </main>
@@ -388,10 +391,32 @@
       <p class="note" data-i18n="note_mdp_profil"></p>
       <label><span data-i18n="mdp_actuel"></span><input name="mot_de_passe_actuel" type="password" autocomplete="current-password"></label>
       <label><span data-i18n="nouveau_mdp"></span><input name="nouveau_mot_de_passe" type="password" minlength="8" autocomplete="new-password"></label>
+      <div class="profil-donnees">
+        <h3 data-i18n="mes_donnees"></h3>
+        <p class="note" data-i18n="mes_donnees_note"></p>
+        <div class="profil-donnees-actions">
+          <a class="btn btn-contour" href="/api/auth/moi/donnees" download data-i18n="telecharger_donnees"></a>
+          <button type="button" class="btn btn-contour btn-danger-contour" id="btn-supprimer-compte" data-i18n="supprimer_compte"></button>
+        </div>
+        <p class="liens-legaux"><a data-lien-legal="conditions" target="_blank" rel="noopener" data-i18n="conditions_utilisation"></a> · <a data-lien-legal="confidentialite" target="_blank" rel="noopener" data-i18n="politique_confidentialite"></a></p>
+      </div>
       <p class="erreur" role="alert"></p>
       <div class="dlg-actions">
         <button type="button" class="btn btn-contour" data-fermer data-i18n="annuler"></button>
         <button type="submit" class="btn btn-accent" data-i18n="enregistrer"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-supprimer-compte">
+    <form>
+      <h2 data-i18n="supprimer_compte"></h2>
+      <p data-i18n="supprimer_compte_texte"></p>
+      <label><span data-i18n="mdp_confirmer"></span><input name="mot_de_passe" type="password" required autocomplete="current-password"></label>
+      <p class="erreur" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-contour" data-fermer data-i18n="annuler"></button>
+        <button type="submit" class="btn btn-danger" data-i18n="supprimer_definitivement"></button>
       </div>
     </form>
   </dialog>

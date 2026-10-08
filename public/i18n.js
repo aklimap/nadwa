@@ -403,6 +403,21 @@ window.NADWA_TEXTES = {
   col_personnes: ['People', 'Personnes', 'الأشخاص'],
   col_equipes: ['Teams', 'Équipes', 'الفرق'],
   col_creee: ['Created', 'Créée le', 'تاريخ الإنشاء'],
+  // Conditions, confidentialité, période gratuite, données personnelles
+  conditions_utilisation: ['Terms of use', "Conditions d'utilisation", 'شروط الاستخدام'],
+  politique_confidentialite: ['Privacy policy', 'Politique de confidentialité', 'سياسة الخصوصية'],
+  conditions_utilisation_min: ['terms of use', "conditions d'utilisation", 'شروط الاستخدام'],
+  politique_confidentialite_min: ['privacy policy', 'politique de confidentialité', 'سياسة الخصوصية'],
+  accepte_conditions: ['I accept the {conditions} and the {confidentialite}.', "J'accepte les {conditions} et la {confidentialite}.", 'أوافق على {conditions} و{confidentialite}.'],
+  gratuit_mois: ['Free for {n} months', 'Gratuit pendant {n} mois', 'مجاني لمدة {n} شهرًا'],
+  gratuit_jusqu_au: ['Free until {date}', "Gratuit jusqu'au {date}", 'مجاني حتى {date}'],
+  mes_donnees: ['My data', 'Mes données', 'بياناتي'],
+  mes_donnees_note: ['Download a copy of your data, or delete your account and everything it contains.', 'Téléchargez une copie de vos données, ou supprimez votre compte et tout ce qu\'il contient.', 'نزّل نسخة من بياناتك، أو احذف حسابك وكل ما يحتويه.'],
+  telecharger_donnees: ['Download my data', 'Télécharger mes données', 'تنزيل بياناتي'],
+  supprimer_compte: ['Delete my account', 'Supprimer mon compte', 'حذف حسابي'],
+  supprimer_compte_texte: ['Your account, the teams you own (with their channels, messages and files) and the messages and files you posted will be permanently deleted. This cannot be undone.', 'Votre compte, les équipes dont vous êtes propriétaire (avec leurs canaux, messages et fichiers) ainsi que vos messages et fichiers déposés seront définitivement supprimés. Cette action est irréversible.', 'سيُحذف نهائيًا حسابك والفرق التي تملكها (بقنواتها ورسائلها وملفاتها) والرسائل والملفات التي نشرتها. لا يمكن التراجع عن ذلك.'],
+  mdp_confirmer: ['Enter your password to confirm', 'Saisissez votre mot de passe pour confirmer', 'أدخل كلمة المرور للتأكيد'],
+  supprimer_definitivement: ['Delete permanently', 'Supprimer définitivement', 'حذف نهائي'],
   erreur_n: ['Error {n}', 'Erreur {n}', 'خطأ {n}'],
 
   // Démonstration

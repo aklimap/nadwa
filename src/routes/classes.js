@@ -171,10 +171,12 @@ routeur.post('/:id/seances', (req, res) => {
   const immediat = Boolean(req.body?.immediat);
   const titre = String(req.body?.titre ?? '').trim();
   const debut = immediat ? new Date() : new Date(req.body?.debut);
-  const duree = Number(req.body?.duree_min) || (immediat ? 60 : 90);
+  const max = require('../limites').dureeMax(DUREE_MAX_MIN);
+  // Réunion immédiate : 60 minutes, ou la durée maximale permise si elle est plus courte.
+  const duree = immediat ? Math.min(Number(req.body?.duree_min) || 60, max) : (Number(req.body?.duree_min) || 90);
   if (!titre || titre.length > 120) return res.status(400).json({ erreur: t(req, 'titre_reunion') });
   if (Number.isNaN(debut.getTime())) return res.status(400).json({ erreur: t(req, 'date_invalide') });
-  if (duree < 15 || duree > DUREE_MAX_MIN) return res.status(400).json({ erreur: t(req, 'duree', { max: DUREE_MAX_MIN }) });
+  if (duree < Math.min(15, max) || duree > max) return res.status(400).json({ erreur: t(req, 'duree', { max }) });
 
   const { lastInsertRowid } = db.prepare(`
     INSERT INTO seances (classe_id, titre, debut, duree_min, reunion_id, organisateur_id)

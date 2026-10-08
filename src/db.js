@@ -262,4 +262,9 @@ if (!colonnes('utilisateurs').includes('statut_choisi')) db.exec("ALTER TABLE ut
 // Fin anticipée d'une réunion par son organisateur.
 if (!colonnes('seances').includes('terminee_le')) db.exec('ALTER TABLE seances ADD COLUMN terminee_le TEXT');
 
+// Acceptation des Conditions d'utilisation, et ouverture effective des réunions (limites d'usage).
+if (!colonnes('utilisateurs').includes('conditions_acceptees_le')) db.exec('ALTER TABLE utilisateurs ADD COLUMN conditions_acceptees_le TEXT');
+if (!colonnes('utilisateurs').includes('conditions_version')) db.exec('ALTER TABLE utilisateurs ADD COLUMN conditions_version TEXT');
+if (!colonnes('seances').includes('ouverte_le')) db.exec('ALTER TABLE seances ADD COLUMN ouverte_le TEXT');
+
 module.exports = db;

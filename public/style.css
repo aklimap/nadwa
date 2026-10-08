@@ -592,3 +592,13 @@ fieldset.participants legend { padding: 0; margin-bottom: 4px; font-weight: 600;
 .auth-verifier p { margin: 0; }
 .verif-icone svg { width: 40px; height: 40px; color: var(--accent); }
 .verif-email { font-weight: 700; font-size: 16px; word-break: break-all; }
+
+/* Période gratuite, liens légaux, données personnelles */
+.auth-gratuit { display: inline-block; margin: 22px 0 0 !important; padding: 6px 14px; border-radius: 999px; background: rgba(255, 255, 255, .12); color: #fff !important; font-size: 14px !important; font-weight: 700; }
+.liens-legaux { margin: 0; text-align: center; font-size: 13px; color: var(--encre-2); }
+.liens-legaux a, label.case a { color: var(--accent); font-weight: 600; }
+.profil-donnees { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--ligne); }
+.profil-donnees h3 { margin: 0; font-size: 15px; }
+.profil-donnees-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.profil-donnees .liens-legaux { text-align: start; }
+.btn-danger-contour { color: var(--danger); border-color: var(--danger); }

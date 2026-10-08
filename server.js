@@ -52,6 +52,7 @@ app.use('/api/invite', require('./src/routes/invite'));
 app.use('/api/conversations', require('./src/routes/conversations'));
 app.use('/api/notifications', require('./src/routes/notifications'));
 app.use('/api/aide', require('./src/routes/aide'));
+app.get('/api/infos', (req, res) => res.json(require('./src/legal').infos()));
 app.use('/api', require('./src/routes/fichiers'));
 app.use('/api', (req, res) => res.status(404).json({ erreur: t(req, 'route_inconnue') }));
 
@@ -61,6 +62,8 @@ const pageAccueil = fs.readFileSync(path.join(__dirname, 'public', 'index.html')
   .replace(/(href|src)="\/(style\.css|i18n\.js|app\.js)"/g, `$1="/$2?v=${version}"`);
 const envoyerAccueil = (req, res) => res.set('Cache-Control', 'no-cache').type('html').send(pageAccueil);
 app.get(['/', '/index.html'], envoyerAccueil);
+// Conditions d'utilisation et Politique de confidentialité (pages publiques).
+require('./src/legal').brancher(app);
 // Service worker (notifications) : toujours la dernière version.
 app.get('/sw.js', (req, res) => res.set('Cache-Control', 'no-cache').sendFile(path.join(__dirname, 'public', 'sw.js')));
 // Appli Android (Play Store) : lien de confiance entre l'appli et le site.

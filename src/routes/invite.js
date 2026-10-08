@@ -7,6 +7,7 @@ const db = require('../db');
 const visio = require('../visio');
 const { etatSeance, OUVERTURE_AVANT_MIN } = require('../metier');
 const { t, langueDe } = require('../i18n');
+const limites = require('../limites');
 
 const routeur = express.Router();
 
@@ -37,6 +38,10 @@ routeur.post('/:jeton/rejoindre', async (req, res, next) => {
     const etat = etatSeance(seance);
     if (etat === 'a_venir') return res.status(403).json({ erreur: t(req, 'salle_ouvre', { min: OUVERTURE_AVANT_MIN }) });
     if (etat === 'terminee') return res.status(403).json({ erreur: t(req, 'reunion_terminee') });
+
+    const refus = limites.controlerEntree(seance, classe, langueDe(req));
+    if (refus) return res.status(403).json({ erreur: refus });
+    limites.noterOuverture(seance);
 
     const invite = { id: `invite-${Date.now()}`, nom: `${nom} (${t(req, 'invite_externe')})` };
     res.json(await visio.lienVisio({ seance, classe, utilisateur: invite, moderateur: false, langue: langueDe(req), micro: req.body?.micro !== false, camera: req.body?.camera !== false, logo: `${req.protocol}://${req.get('host')}/logo-nadwa${langueDe(req) === 'ar' ? '-ar' : ''}.svg` }));

@@ -158,12 +158,33 @@ function translatePage() {
   $$('[data-i18n-placeholder]').forEach((el) => { el.placeholder = t(el.dataset.i18nPlaceholder); });
   $$('[data-i18n-aria]').forEach((el) => { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
   $$('[data-i18n-title]').forEach((el) => { el.title = t(el.dataset.i18nTitle); });
+  // Conditions d'utilisation et confidentialité, dans la langue de l'interface.
+  $$('[data-lien-legal]').forEach((el) => { el.href = `/${el.dataset.lienLegal}?lang=${l.code}`; });
+  $$('[data-liens-conditions]').forEach((el) => {
+    el.innerHTML = t('accepte_conditions', {
+      conditions: `<a href="/conditions?lang=${l.code}" target="_blank" rel="noopener">${esc(t('conditions_utilisation_min'))}</a>`,
+      confidentialite: `<a href="/confidentialite?lang=${l.code}" target="_blank" rel="noopener">${esc(t('politique_confidentialite_min'))}</a>`,
+    });
+  });
+  showFreePeriod();
   $$('.choix-langue').forEach((sel) => {
     sel.innerHTML = window.NADWA_LANGUES.map((x) => `<option value="${x.code}" lang="${x.code}">${x.nom}</option>`).join('');
     sel.value = l.code;
   });
   buildFormats();
 }
+
+/** « Gratuit pendant 12 mois » sur la page d'accueil (date de fin si le lancement est fixé). */
+let publicInfo = null;
+function showFreePeriod() {
+  const el = $('#auth-gratuit');
+  if (!el || !publicInfo) return;
+  el.textContent = publicInfo.gratuit_jusqu_au
+    ? t('gratuit_jusqu_au', { date: new Intl.DateTimeFormat(langue().locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(publicInfo.gratuit_jusqu_au)) })
+    : t('gratuit_mois', { n: publicInfo.mois_gratuits });
+  el.hidden = false;
+}
+fetch('/api/infos').then((r) => r.json()).then((info) => { publicInfo = info; showFreePeriod(); }).catch(() => {});
 
 function setLanguage(code) {
   window.NADWA_LANGUE = code;
@@ -246,6 +267,7 @@ function setAuthMode(mode) {
   const f = $('#form-auth');
   $$('[data-inscription]').forEach((el) => { el.hidden = !signup; });
   f.nom.required = signup;
+  f.accepte_conditions.required = signup;
   f.mot_de_passe.autocomplete = signup ? 'new-password' : 'current-password';
   $('#auth-titre').textContent = t(signup ? 'titre_inscription' : 'titre_connexion');
   $('#auth-sous-titre').textContent = t(signup ? 'sous_titre_inscription' : 'sous_titre_connexion');
@@ -266,7 +288,7 @@ $('#form-auth').addEventListener('submit', async (e) => {
   $('#auth-erreur').textContent = '';
   try {
     const body = { email: f.email.value, mot_de_passe: f.mot_de_passe.value };
-    if (state.authMode === 'inscription') body.nom = f.nom.value;
+    if (state.authMode === 'inscription') { body.nom = f.nom.value; body.accepte_conditions = f.accepte_conditions.checked; }
     const result = await api(state.authMode === 'inscription' ? '/auth/inscription' : '/auth/connexion', { method: 'POST', body });
     if (result.verification) { f.reset(); showVerifyPending(result.email); return; }
     f.reset();
@@ -2092,6 +2114,15 @@ function openProfile() {
     toast(t('profil_maj'));
   }, (form) => { form.nom.value = state.me.nom; });
 }
+
+// Supprimer son compte : mot de passe demandé, puis retour à l'accueil.
+$('#btn-supprimer-compte').addEventListener('click', () => {
+  $('#dlg-profil').close();
+  openDialog('dlg-supprimer-compte', async ({ mot_de_passe }) => {
+    await api('/auth/moi', { method: 'DELETE', body: { mot_de_passe } });
+    location.replace('/');
+  });
+});
 
 // ---------- Lancement ----------
 /** Jeton d'invitation dans l'adresse : /r/<jeton> (ou #/r/<jeton>). */

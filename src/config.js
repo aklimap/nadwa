@@ -35,4 +35,22 @@ module.exports = {
   // Serveur Jitsi privé sécurisé par jetons (JWT) : l'animateur entre sans mot de passe.
   jitsiAppId: (process.env.JITSI_APP_ID || '').trim(),
   jitsiAppSecret: (process.env.JITSI_APP_SECRET || '').trim(),
+
+  // Limites d'usage (0 = pas de limite). Réglables sans toucher au code, ex. pour l'offre gratuite.
+  limites: {
+    participants: Number(process.env.LIMITE_PARTICIPANTS) || 0, // personnes connectées dans une même réunion
+    dureeMin: Number(process.env.LIMITE_DUREE_MIN) || 0, // durée maximale d'une réunion, en minutes
+    reunionsSimultanees: Number(process.env.LIMITE_REUNIONS_SIMULTANEES) || 0, // réunions ouvertes en même temps par organisation
+  },
+
+  // Éditeur du service, affiché dans les Conditions et la Politique de confidentialité.
+  editeur: (process.env.EDITEUR_NOM || 'Nadwa').trim(), // ex. « EURL Nadwa »
+  editeurAdresse: (process.env.EDITEUR_ADRESSE || '').trim(),
+  contactEmail: (process.env.SUPPORT_EMAIL || 'contact@nadwalive.com').trim(),
+  // Hébergement : false = phase pilote (Allemagne) ; true = serveurs en Algérie (HEBERGEUR = nom de l'hébergeur).
+  hebergementAlgerie: process.env.HEBERGEMENT_ALGERIE === 'true',
+  hebergeur: (process.env.HEBERGEUR || '').trim(),
+  // Période gratuite : date du lancement public (AAAA-MM-JJ) et nombre de mois gratuits.
+  dateLancement: (process.env.DATE_LANCEMENT || '').trim(),
+  moisGratuits: Number(process.env.MOIS_GRATUITS) || 12,
 };

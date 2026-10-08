@@ -7,6 +7,9 @@ const { verifierCompte, espacesDe, espacePersonnel } = require('../metier');
 const { t, langueDe } = require('../i18n');
 const crypto = require('crypto');
 const mail = require('../mail');
+const fs = require('fs');
+const path = require('path');
+const legal = require('../legal');
 
 /** Adresse publique de la plateforme, pour les liens des e-mails. */
 const urlDe = (req) => config.urlPublique || `${req.protocol}://${req.get('host')}`;
@@ -47,6 +50,7 @@ routeur.post('/inscription', async (req, res, next) => {
     const champs = lireChamps(req.body);
     const erreur = verifierCompte(champs);
     if (erreur) return res.status(400).json({ erreur: t(req, erreur) });
+    if (req.body?.accepte_conditions !== true) return res.status(400).json({ erreur: t(req, 'conditions_requises') });
     const verifier = mail.actif();
     const existant = db.prepare('SELECT id, email_verifie FROM utilisateurs WHERE email = ?').get(champs.email);
     // Une adresse déjà vérifiée est prise ; une inscription jamais confirmée peut être reprise.
@@ -62,6 +66,7 @@ routeur.post('/inscription', async (req, res, next) => {
       id = Number(db.prepare('INSERT INTO utilisateurs (nom, email, mot_de_passe, langue, email_verifie) VALUES (?, ?, ?, ?, ?)')
         .run(champs.nom, champs.email, hash, langueDe(req), verifier ? 0 : 1).lastInsertRowid);
     }
+    db.prepare('UPDATE utilisateurs SET conditions_acceptees_le = ?, conditions_version = ? WHERE id = ?').run(new Date().toISOString(), legal.VERSION, id);
     const utilisateur = profil({ id, nom: champs.nom, email: champs.email });
     if (!existant) espacePersonnel(utilisateur, t(req, 'equipe_perso'));
 
@@ -184,6 +189,59 @@ routeur.patch('/moi', exigerConnexion, (req, res) => {
 
 routeur.get('/moi', exigerConnexion, (req, res) => {
   res.json({ utilisateur: req.utilisateur, espaces: espacesDe(req.utilisateur) });
+});
+
+// ---------- Droits sur ses données (loi 18-07) ----------
+
+// Télécharger ses données : fichier JSON (le contenu des fichiers déposés se télécharge depuis Nadwa).
+routeur.get('/moi/donnees', exigerConnexion, (req, res) => {
+  const id = req.utilisateur.id;
+  const tout = (sql, ...p) => db.prepare(sql).all(...p);
+  const donnees = {
+    exporte_le: new Date().toISOString(),
+    compte: db.prepare(`SELECT id, nom, email, langue, cree_le, statut_choisi, notif_email, notif_push,
+      conditions_acceptees_le, conditions_version FROM utilisateurs WHERE id = ?`).get(id),
+    organisations: tout(`SELECT e.id, e.nom, a.role, a.rejoint_le FROM adhesions a JOIN espaces e ON e.id = a.espace_id WHERE a.utilisateur_id = ?`, id),
+    equipes_proprietaire: tout('SELECT id, nom, cree_le FROM classes WHERE responsable_id = ?', id),
+    equipes_membre: tout('SELECT c.id, c.nom, m.rejoint_le FROM membres m JOIN classes c ON c.id = m.classe_id WHERE m.utilisateur_id = ?', id),
+    publications: tout(`SELECT m.id, c.nom AS equipe, k.nom AS canal, m.contenu, m.cree_le FROM messages m
+      JOIN classes c ON c.id = m.classe_id JOIN canaux k ON k.id = m.canal_id WHERE m.utilisateur_id = ? ORDER BY m.cree_le`, id),
+    conversations: tout(`SELECT v.id, v.nom FROM conversation_membres cm JOIN conversations v ON v.id = cm.conversation_id WHERE cm.utilisateur_id = ?`, id),
+    messages_envoyes: tout('SELECT id, conversation_id, contenu, cree_le FROM messages_directs WHERE utilisateur_id = ? ORDER BY cree_le', id),
+    fichiers_deposes: tout('SELECT id, nom, type_mime, taille, cree_le FROM fichiers WHERE utilisateur_id = ? AND est_dossier = 0', id),
+    reunions_organisees: tout('SELECT id, titre, debut, duree_min FROM seances WHERE organisateur_id = ?', id),
+    reunions_invite: tout('SELECT s.id, s.titre, s.debut FROM seance_invites i JOIN seances s ON s.id = i.seance_id WHERE i.utilisateur_id = ?', id),
+    messages_support: tout('SELECT type, message, cree_le FROM retours WHERE utilisateur_id = ?', id),
+    evaluations: tout('SELECT note, problemes, commentaire, cree_le FROM evaluations WHERE utilisateur_id = ?', id),
+    appareils_notifies: db.prepare('SELECT COUNT(*) AS n FROM push_abonnements WHERE utilisateur_id = ?').get(id).n,
+  };
+  res.set('Content-Disposition', `attachment; filename="nadwa-mes-donnees-${new Date().toISOString().slice(0, 10)}.json"`);
+  res.type('application/json').send(JSON.stringify(donnees, null, 2));
+});
+
+// Supprimer son compte (mot de passe demandé). Sont effacés : le compte, ses équipes (avec leurs
+// canaux, messages et fichiers), ses messages et fichiers déposés ailleurs, son organisation personnelle.
+routeur.delete('/moi', exigerConnexion, (req, res) => {
+  const id = req.utilisateur.id;
+  const ligne = db.prepare('SELECT mot_de_passe, est_superadmin FROM utilisateurs WHERE id = ?').get(id);
+  if (!ligne || !bcrypt.compareSync(String(req.body?.mot_de_passe ?? ''), ligne.mot_de_passe)) {
+    return res.status(400).json({ erreur: t(req, 'mdp_actuel_faux') });
+  }
+  if (ligne.est_superadmin) return res.status(403).json({ erreur: t(req, 'suppr_compte_admin') });
+  const stockages = db.prepare(`SELECT stockage FROM fichiers WHERE stockage IS NOT NULL AND (
+      utilisateur_id = ?
+      OR canal_id IN (SELECT k.id FROM canaux k JOIN classes c ON c.id = k.classe_id WHERE c.responsable_id = ?)
+      OR conversation_id IN (SELECT v.id FROM conversations v JOIN classes c ON c.id = v.classe_id WHERE c.responsable_id = ?))`)
+    .all(id, id, id).map((f) => f.stockage);
+  db.transaction(() => {
+    db.prepare('DELETE FROM fichiers WHERE utilisateur_id = ? AND est_dossier = 0').run(id);
+    db.prepare('DELETE FROM messages_directs WHERE utilisateur_id = ?').run(id);
+    db.prepare('DELETE FROM espaces WHERE personnel = 1 AND cree_par = ?').run(id);
+    db.prepare('DELETE FROM utilisateurs WHERE id = ?').run(id); // équipes, adhésions, publications : en cascade
+  })();
+  for (const s of stockages) fs.rm(path.join(config.fichiersDir, s), { force: true }, () => {});
+  fermerSession(res);
+  res.json({ ok: true });
 });
 
 module.exports = routeur;
