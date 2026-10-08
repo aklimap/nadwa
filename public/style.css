@@ -602,3 +602,4 @@ fieldset.participants legend { padding: 0; margin-bottom: 4px; font-weight: 600;
 .profil-donnees-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .profil-donnees .liens-legaux { text-align: start; }
 .btn-danger-contour { color: var(--danger); border-color: var(--danger); }
+.gratuit-app { margin: 0 0 8px; padding: 6px 10px; border-radius: 8px; background: var(--accent-pale); color: var(--accent-fonce); font-size: 13px; font-weight: 700; text-align: center; }

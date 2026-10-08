@@ -177,12 +177,11 @@ function translatePage() {
 /** « Gratuit pendant 12 mois » sur la page d'accueil (date de fin si le lancement est fixé). */
 let publicInfo = null;
 function showFreePeriod() {
-  const el = $('#auth-gratuit');
-  if (!el || !publicInfo) return;
-  el.textContent = publicInfo.gratuit_jusqu_au
+  if (!publicInfo) return;
+  const texte = publicInfo.gratuit_jusqu_au
     ? t('gratuit_jusqu_au', { date: new Intl.DateTimeFormat(langue().locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(publicInfo.gratuit_jusqu_au)) })
     : t('gratuit_mois', { n: publicInfo.mois_gratuits });
-  el.hidden = false;
+  $$('[data-gratuit]').forEach((el) => { el.textContent = texte; el.hidden = false; });
 }
 fetch('/api/infos').then((r) => r.json()).then((info) => { publicInfo = info; showFreePeriod(); }).catch(() => {});
 
