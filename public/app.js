@@ -12,6 +12,10 @@ const initials = (name) => String(name || '').split(/\s+/).filter((w) => /\p{L}/
 const hue = (id) => (Number(id) * 67) % 360;
 const meetingEnd = (s) => new Date(Date.parse(s.debut) + s.duree_min * 60_000);
 const avatar = (id, nom, cls = '') => `<span class="avatar ${cls}" data-teinte="${hue(id)}" aria-hidden="true">${esc(initials(nom))}</span>`;
+/** Avatar d'une personne, avec la pastille de présence (Disponible, Absent…). */
+const avatarP = (id, nom, cls = '') => `<span class="avatar ${cls}" data-teinte="${hue(id)}" aria-hidden="true">${esc(initials(nom))}${presenceDot(id)}</span>`;
+const presenceDot = (id) => { const s = statutDe(id); return `<span class="presence" data-presence="${id}" data-statut="${s}" title="${esc(t(`statut_${s}`))}"></span>`; };
+const statutDe = (id) => state.presence.get(id) || 'hors_ligne';
 const ICONES = {
   video: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2.5"/><path d="m16 10.5 5-3v9l-5-3"/></svg>',
   videoOff: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2.5"/><path d="m16 10.5 5-3v9l-5-3M3 3l18 18"/></svg>',
@@ -34,6 +38,7 @@ const ICONES = {
   telecharger: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
   trombone: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 11-8.5 8.5a5 5 0 0 1-7-7L14 4a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4L15.5 7"/></svg>',
   dossier: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+  options: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>',
   poubelle: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>',
   code: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1"/><path d="M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1"/></svg>',
 };
@@ -179,6 +184,7 @@ const state = {
   teams: [], teamId: null, detail: null, fileFolder: null, meetings: [], channels: [], channelId: null, unread: new Set(), tab: 'publications', teamFilter: '',
   convs: [], convId: null, convFilter: '', contacts: null,
   socket: null, authMode: 'connexion',
+  presence: new Map(), presenceChoix: 'auto',
 };
 
 async function api(path, { method = 'GET', body } = {}) {
@@ -313,7 +319,7 @@ async function start({ utilisateur, espaces }) {
     await reloadOrgs();
   }
   const me = $('#btn-moi');
-  me.textContent = initials(utilisateur.nom);
+  me.innerHTML = `${esc(initials(utilisateur.nom))}${presenceDot(utilisateur.id)}`;
   me.style.setProperty('--teinte', hue(utilisateur.id));
   connectSocket();
   showScreen('ecran-app');
@@ -344,6 +350,31 @@ function renderOrgSwitch() {
 }
 $('#btn-choix-org').addEventListener('click', (e) => openMenu('menu-moi', e.currentTarget, buildOrgMenu));
 
+// ---------- Présence ----------
+// « En veille » après 5 minutes sans activité (souris, clavier, toucher) ; « En réunion » pendant la visio.
+const VEILLE_MS = 5 * 60_000;
+let derniereActivite = Date.now();
+let etaitInactif = false;
+const inactif = () => Date.now() - derniereActivite > VEILLE_MS;
+function noteActivity() {
+  derniereActivite = Date.now();
+  if (etaitInactif) { etaitInactif = false; state.socket?.emit('presence:activite', false); }
+}
+for (const ev of ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart']) addEventListener(ev, noteActivity, { passive: true });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) noteActivity(); });
+setInterval(() => {
+  if (!etaitInactif && inactif()) { etaitInactif = true; state.socket?.emit('presence:activite', true); }
+}, 30_000);
+
+function setDot(el, statut) {
+  el.dataset.statut = statut;
+  if (el.classList.contains('presence')) el.title = t(`statut_${statut}`);
+}
+function chooseStatus(choix) {
+  state.presenceChoix = choix;
+  state.socket?.emit('presence:choisir', choix);
+}
+
 function connectSocket() {
   if (state.socket) return;
   const socket = io({ withCredentials: true, auth: { langue: window.NADWA_LANGUE } });
@@ -361,6 +392,21 @@ function connectSocket() {
     if (classe_id === state.teamId) loadMeetings();
   });
   socket.on('dm:nouveau', onDirectMessage);
+  socket.on('presence:tout', ({ statuts, choix }) => {
+    state.presence = new Map(Object.entries(statuts).map(([id, s]) => [Number(id), s]));
+    state.presenceChoix = choix;
+    $$('[data-presence]').forEach((el) => setDot(el, statutDe(Number(el.dataset.presence))));
+    socket.emit('presence:activite', inactif());
+    socket.emit('presence:reunion', Boolean(visio.api));
+  });
+  socket.on('presence:maj', ({ id, statut }) => {
+    if (statut === 'hors_ligne') state.presence.delete(id); else state.presence.set(id, statut);
+    $$(`[data-presence="${id}"]`).forEach((el) => setDot(el, statut));
+  });
+  socket.on('presence:choix', (choix) => { state.presenceChoix = choix; });
+  socket.on('classe:supprimee', ({ classe_id }) => {
+    if (classe_id === state.teamId) leaveDeletedTeam(); else if (state.org) loadTeams();
+  });
   socket.on('fichiers:maj', ({ canal_id }) => { if (canal_id === state.channelId && state.tab === 'fichiers' && state.view === 'classes') renderFiles(); });
 }
 
@@ -423,7 +469,11 @@ function buildOrgMenu(menu) {
 function buildMeMenu(menu) {
   const admin = state.org?.role === 'admin' && !state.org?.personnel;
   menu.innerHTML = `
-    <div class="menu-tete">${avatar(state.me.id, state.me.nom, 'grand')}<div><strong>${esc(state.me.nom)}</strong><small dir="ltr">${esc(state.me.email)}</small></div></div>
+    <div class="menu-tete">${avatarP(state.me.id, state.me.nom, 'grand')}<div><strong>${esc(state.me.nom)}</strong><small dir="ltr">${esc(state.me.email)}</small></div></div>
+    <div class="menu-section">${t('statut')}</div>
+    ${[['auto', 'disponible'], ['absent', 'absent'], ['non_disponible', 'non_disponible']].map(([choix, s]) => `
+      <button type="button" data-statut-choix="${choix}" class="${state.presenceChoix === choix ? 'actif' : ''}"><span class="presence-pastille" data-statut="${s}"></span><span>${t(`statut_${s}`)}</span></button>`).join('')}
+    <hr>
     <button type="button" data-action="profil">${ICONES.profil}<span>${t('mon_profil')}</span></button>
     <div class="menu-langue"><span>${t('langue')}</span><select class="choix-langue" aria-label="${esc(t('langue'))}"></select></div>
     <hr>
@@ -443,6 +493,7 @@ function buildMeMenu(menu) {
 $('#btn-moi').addEventListener('click', (e) => openMenu('menu-moi', e.currentTarget, buildMeMenu));
 
 function bindMenuActions(menu) {
+  $$('[data-statut-choix]', menu).forEach((b) => b.addEventListener('click', () => { menu.hidden = true; chooseStatus(b.dataset.statutChoix); }));
   $$('[data-org]', menu).forEach((b) => b.addEventListener('click', () => { menu.hidden = true; openOrg(Number(b.dataset.org)); }));
   $$('[data-action]', menu).forEach((b) => b.addEventListener('click', () => {
     menu.hidden = true;
@@ -511,6 +562,28 @@ function channelList() {
     </ul>`;
 }
 
+async function deleteTeam() {
+  const team = state.detail?.classe;
+  if (!team) return;
+  const saisie = prompt(t('confirmer_suppr_equipe', { nom: team.nom }));
+  if (saisie === null) return;
+  if (saisie.trim() !== team.nom.trim()) { toast(t('nom_equipe_different')); return; }
+  try {
+    await api(`/classes/${team.id}`, { method: 'DELETE' });
+    leaveDeletedTeam();
+    toast(t('equipe_supprimee', { nom: team.nom }));
+  } catch (err) { toast(err.message); }
+}
+
+/** L'équipe affichée n'existe plus : retour à la liste. */
+function leaveDeletedTeam() {
+  Object.assign(state, { teamId: null, detail: null, meetings: [], channels: [], channelId: null, tab: 'publications' });
+  state.unread.clear();
+  backToList();
+  showEmptyTeam();
+  loadTeams();
+}
+
 function showEmptyTeam() {
   $('#classe').innerHTML = `<div class="fil"><div class="fil-vide"><strong>${esc(orgName(state.org))}</strong>${t(state.teams.length ? 'choisir_equipe' : 'vide_creer_equipe')}</div></div>`;
 }
@@ -575,6 +648,7 @@ function renderTeam() {
         <div class="detail-titre"><h1>${esc(channel ? channelName(channel) : team.nom)}</h1><p>${esc(team.nom)}</p></div>
         ${isOwner ? `<button class="btn btn-contour" id="btn-inviter">${ICONES.inviter}<span>${t('inviter')}</span></button>` : ''}
         <button class="btn btn-accent" id="btn-reunion" aria-haspopup="true">${ICONES.video}<span>${t('reunion')}</span>${ICONES.chevron}</button>
+        ${isOwner ? `<button class="btn-icone" id="btn-options-equipe" aria-haspopup="true" aria-label="${esc(t('options_equipe'))}" title="${esc(t('options_equipe'))}">${ICONES.options}</button>` : ''}
       </div>
       <div class="onglets" role="tablist">
         <button role="tab" data-onglet="publications" aria-selected="${state.tab === 'publications'}">${t('publications')}</button>
@@ -586,6 +660,10 @@ function renderTeam() {
   $('#btn-retour').addEventListener('click', backToList);
   $('#btn-inviter')?.addEventListener('click', openInvite);
   $('#btn-reunion').addEventListener('click', (e) => openMenu('menu-reunion', e.currentTarget));
+  $('#btn-options-equipe')?.addEventListener('click', (e) => openMenu('menu-equipe', e.currentTarget, (menu) => {
+    menu.innerHTML = `<button type="button" class="danger" id="btn-suppr-equipe">${ICONES.poubelle}<span>${t('supprimer_equipe')}</span></button>`;
+    $('#btn-suppr-equipe', menu).addEventListener('click', () => { menu.hidden = true; deleteTeam(); });
+  }));
   $$('[data-onglet]').forEach((b) => b.addEventListener('click', () => { state.tab = b.dataset.onglet; renderTeam(); }));
   if (state.tab === 'membres') renderMembers(); else if (state.tab === 'fichiers') renderFiles(); else renderFeed();
 }
@@ -765,7 +843,7 @@ function renderMembers() {
   const zone = $('#zone-onglet');
   const { classe: team, responsable: owner, membres: members, estResponsable: isOwner } = state.detail;
   const row = (p, removable) => `
-    <li class="membre">${avatar(p.id, p.nom)}<div><strong>${esc(p.nom)}</strong><small dir="ltr">${esc(p.email)}</small></div>
+    <li class="membre">${avatarP(p.id, p.nom)}<div><strong>${esc(p.nom)}</strong><small dir="ltr">${esc(p.email)}</small></div>
       ${removable ? `<button class="btn-discret" data-retirer="${p.id}">${t('retirer')}</button>` : ''}
       ${p.id !== state.me.id ? `<button class="btn-icone" data-ecrire="${p.id}" aria-label="${esc(t('envoyer_message_a', { nom: p.nom }))}" title="${esc(t('envoyer_message_a', { nom: p.nom }))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></button>` : ''}
     </li>`;
@@ -1035,6 +1113,7 @@ async function openVisio(reponse, { titre = '', etat = null, seanceId = null } =
     },
   });
   Object.assign(visio, { api, etat, seanceId, timer: etat ? setInterval(checkVisio, 10_000) : null });
+  state.socket?.emit('presence:reunion', true);
   // Raccrocher dans la visio, ou être exclu quand l'organisateur termine : retour à Nadwa.
   api.addListener('videoConferenceLeft', () => closeVisio());
   api.addListener('readyToClose', () => closeVisio());
@@ -1047,6 +1126,7 @@ function closeVisio(rafraichir = true) {
   if (api) { try { api.dispose(); } catch { /* déjà fermée */ } }
   $('#visio-cadre').innerHTML = '';
   $('#ecran-visio').hidden = true;
+  if (api) state.socket?.emit('presence:reunion', false);
   if (rafraichir && api && state.me) {
     loadMeetings();
     if (state.view === 'agenda') loadCalendar();
@@ -1122,7 +1202,7 @@ function updateBadge() {
 }
 
 const convName = (c) => c.nom || c.membres.map((m) => m.nom).join(', ') || t('conversation');
-const convAvatar = (c, cls = 'grand') => (c.membres.length === 1 ? avatar(c.membres[0].id, c.membres[0].nom, cls) : avatar(c.id + 1000, convName(c), cls));
+const convAvatar = (c, cls = 'grand') => (c.membres.length === 1 ? avatarP(c.membres[0].id, c.membres[0].nom, cls) : avatar(c.id + 1000, convName(c), cls));
 const convPreview = (c) => {
   if (!c.dernier) return t('nouvelle_conversation');
   const who = c.dernier.auteur_id === state.me.id ? `${t('vous_moi')} : ` : (c.membres.length > 1 ? `${c.dernier.auteur_nom} : ` : '');
@@ -1319,7 +1399,7 @@ function createPicker(root, source, onChange = () => {}) {
     const list = picker.people.filter((p) => !picker.selected.has(p.id) && !picker.exclude.has(p.id))
       .filter((p) => !q || p.nom.toLowerCase().includes(q) || p.email.toLowerCase().includes(q)).slice(0, 6);
     results.innerHTML = list.length
-      ? list.map((p) => `<li><button type="button" data-choisir="${p.id}">${avatar(p.id, p.nom, 'petit')}<span><strong>${esc(p.nom)}</strong><small dir="ltr">${esc(p.email)}</small></span></button></li>`).join('')
+      ? list.map((p) => `<li><button type="button" data-choisir="${p.id}">${avatarP(p.id, p.nom, 'petit')}<span><strong>${esc(p.nom)}</strong><small dir="ltr">${esc(p.email)}</small></span></button></li>`).join('')
       : `<li class="choix-vide">${t(picker.people.length ? 'aucune_personne' : 'aucun_contact')}</li>`;
   }
   input.addEventListener('input', renderResults);
@@ -1699,7 +1779,7 @@ function openProfile() {
   openDialog('dlg-profil', async (values) => {
     const { utilisateur } = await api('/auth/moi', { method: 'PATCH', body: values });
     state.me = { ...state.me, ...utilisateur };
-    $('#btn-moi').textContent = initials(utilisateur.nom);
+    $('#btn-moi').innerHTML = `${esc(initials(utilisateur.nom))}${presenceDot(utilisateur.id)}`;
     toast(t('profil_maj'));
   }, (form) => { form.nom.value = state.me.nom; });
 }

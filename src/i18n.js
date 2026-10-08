@@ -44,6 +44,7 @@ const MESSAGES = {
   duree: ['Duration must be between 15 and {max} minutes.', 'La durée doit être comprise entre 15 et {max} minutes.', 'يجب أن تكون المدة بين 15 و{max} دقيقة.'],
   reunion_introuvable: ["Meeting not found, or you don't have access.", "Réunion introuvable, ou vous n'y avez pas accès.", 'الاجتماع غير موجود أو ليس لديك حق الوصول إليه.'],
   suppr_reunion_owner: ['Only the organizer or a team owner can delete this meeting.', "Seuls l'organisateur ou un propriétaire de l'équipe peuvent supprimer cette réunion.", 'لا يمكن حذف هذا الاجتماع إلا من قِبل منظِّمه أو أحد مالكي الفريق.'],
+  suppr_equipe_owner: ['Only a team owner can delete this team.', "Seul un propriétaire de l'équipe peut la supprimer.", 'لا يمكن حذف هذا الفريق إلا من قِبل أحد مالكيه.'],
   terminer_reunion_owner: ['Only the organizer can end this meeting.', "Seul l'organisateur peut terminer cette réunion.", 'لا يمكن إنهاء هذا الاجتماع إلا من قِبل منظِّمه.'],
   participants_hote: ['Only the organizer or a team owner can change the participants.', "Seuls l'organisateur ou un propriétaire de l'équipe peuvent modifier les participants.", 'لا يمكن تعديل المشاركين إلا من قِبل المنظِّم أو أحد مالكي الفريق.'],
   reunion_terminee: ['This meeting has ended.', 'Cette réunion est terminée.', 'انتهى هذا الاجتماع.'],

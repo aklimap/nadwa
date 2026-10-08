@@ -1,4 +1,7 @@
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
+const config = require('../config');
 const db = require('../db');
 const { exigerConnexion } = require('../auth');
 const { t } = require('../i18n');
@@ -96,6 +99,25 @@ routeur.get('/:id', (req, res) => {
     membres,
     estResponsable: estResponsable(req.utilisateur, classe),
   });
+});
+
+// Supprimer l'équipe : canaux, messages, réunions et fichiers. Propriétaire ou administrateur.
+routeur.delete('/:id', (req, res) => {
+  const classe = trouverClasse(req, res);
+  if (!classe) return;
+  if (!estResponsable(req.utilisateur, classe)) return res.status(403).json({ erreur: t(req, 'suppr_equipe_owner') });
+  const membres = db.prepare('SELECT utilisateur_id AS id FROM membres WHERE classe_id = ?').all(classe.id).map((m) => m.id);
+  const fichiers = db.prepare(`SELECT f.stockage FROM fichiers f JOIN canaux c ON c.id = f.canal_id
+    WHERE c.classe_id = ? AND f.stockage IS NOT NULL`).all(classe.id).map((f) => f.stockage);
+  db.prepare('DELETE FROM classes WHERE id = ?').run(classe.id);
+  for (const s of fichiers) fs.rm(path.join(config.fichiersDir, s), { force: true }, () => {});
+  const io = req.app.get('io');
+  if (io) {
+    let cible = io.to(`classe:${classe.id}`).to(`utilisateur:${classe.responsable_id}`);
+    for (const id of membres) cible = cible.to(`utilisateur:${id}`);
+    cible.emit('classe:supprimee', { classe_id: classe.id });
+  }
+  res.json({ ok: true });
 });
 
 routeur.delete('/:id/membres/:utilisateurId', (req, res) => {

@@ -190,6 +190,9 @@ if (!colonnes('seances').includes('organisateur_id')) {
   db.exec('ALTER TABLE seances ADD COLUMN organisateur_id INTEGER REFERENCES utilisateurs(id) ON DELETE SET NULL');
 }
 
+// Statut de présence choisi par la personne : auto (Disponible), absent, non_disponible.
+if (!colonnes('utilisateurs').includes('statut_choisi')) db.exec("ALTER TABLE utilisateurs ADD COLUMN statut_choisi TEXT NOT NULL DEFAULT 'auto'");
+
 // Fin anticipée d'une réunion par son organisateur.
 if (!colonnes('seances').includes('terminee_le')) db.exec('ALTER TABLE seances ADD COLUMN terminee_le TEXT');
 
