@@ -1,10 +1,9 @@
 /**
  * Notifications : e-mail (SMTP, ex. Brevo) et notifications « push » sur téléphone et ordinateur.
  *
- * - Message direct, clavardage d'équipe, publication dans un canal : chaque destinataire est prévenu.
- *   Pour ne pas inonder les boîtes de réception, un seul e-mail part par conversation (ou canal)
- *   et par personne toutes les 10 minutes ; les notifications push, elles, partent à chaque message.
  * - Rappel de réunion 30 minutes avant le début, pour l'équipe et les personnes invitées.
+ * - Les messages ne sont pas notifiés (choix de l'exploitant). messageDirect() et publication()
+ *   restent disponibles : il suffit de les rappeler à la création d'un message pour les réactiver.
  *
  * Les notifications push sont gratuites (Web Push : Chrome, Edge, Firefox, Android, et l'appli
  * Android Nadwa). Les clés VAPID sont créées au premier démarrage et gardées dans la base.

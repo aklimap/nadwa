@@ -126,7 +126,6 @@ module.exports = function brancherTempsReel(io) {
         .run(classe.id, canal.id, u.id, contenu);
       const message = db.prepare(`${SQL_MESSAGE} WHERE m.id = ?`).get(lastInsertRowid);
       io.to(`classe:${classe.id}`).emit('message:nouveau', message);
-      require('./notifications').publication(message);
       repondre({ ok: true });
     });
   });
