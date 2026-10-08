@@ -1,4 +1,5 @@
 const http = require('http');
+const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const helmet = require('helmet');
@@ -52,8 +53,14 @@ app.use('/api/conversations', require('./src/routes/conversations'));
 app.use('/api', require('./src/routes/fichiers'));
 app.use('/api', (req, res) => res.status(404).json({ erreur: t(req, 'route_inconnue') }));
 
-app.use(express.static(path.join(__dirname, 'public')));
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+// Page d'accueil : les fichiers de l'interface portent le numéro de version (?v=…), pour que
+// chaque mise à jour soit chargée tout de suite, sans vider le cache du navigateur.
+const pageAccueil = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8')
+  .replace(/(href|src)="\/(style\.css|i18n\.js|app\.js)"/g, `$1="/$2?v=${version}"`);
+const envoyerAccueil = (req, res) => res.set('Cache-Control', 'no-cache').type('html').send(pageAccueil);
+app.get(['/', '/index.html'], envoyerAccueil);
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
+app.get('*', envoyerAccueil);
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
