@@ -24,6 +24,13 @@ const lireChamps = (corps = {}) => ({
 
 const profil = (u) => ({ id: u.id, nom: u.nom, email: u.email, est_superadmin: Boolean(u.est_superadmin) });
 
+// ---------- Conditions d'utilisation et hébergement des données ----------
+function accepterConditions(id) {
+  const maintenant = new Date().toISOString();
+  db.prepare('UPDATE utilisateurs SET conditions_acceptees_le = ?, conditions_version = ?, hebergement_accepte_le = ? WHERE id = ?')
+    .run(maintenant, legal.VERSION, maintenant, id);
+}
+
 // ---------- Vérification de l'adresse e-mail ----------
 const empreinte = (jeton) => crypto.createHash('sha256').update(jeton).digest('hex');
 const VERIFICATION_HEURES = 48;
@@ -50,7 +57,7 @@ routeur.post('/inscription', async (req, res, next) => {
     const champs = lireChamps(req.body);
     const erreur = verifierCompte(champs);
     if (erreur) return res.status(400).json({ erreur: t(req, erreur) });
-    if (req.body?.accepte_conditions !== true) return res.status(400).json({ erreur: t(req, 'conditions_requises') });
+    if (req.body?.accepte_conditions !== true || req.body?.accepte_hebergement !== true) return res.status(400).json({ erreur: t(req, 'conditions_requises') });
     const verifier = mail.actif();
     const existant = db.prepare('SELECT id, email_verifie FROM utilisateurs WHERE email = ?').get(champs.email);
     // Une adresse déjà vérifiée est prise ; une inscription jamais confirmée peut être reprise.
@@ -66,7 +73,7 @@ routeur.post('/inscription', async (req, res, next) => {
       id = Number(db.prepare('INSERT INTO utilisateurs (nom, email, mot_de_passe, langue, email_verifie) VALUES (?, ?, ?, ?, ?)')
         .run(champs.nom, champs.email, hash, langueDe(req), verifier ? 0 : 1).lastInsertRowid);
     }
-    db.prepare('UPDATE utilisateurs SET conditions_acceptees_le = ?, conditions_version = ? WHERE id = ?').run(new Date().toISOString(), legal.VERSION, id);
+    accepterConditions(id);
     const utilisateur = profil({ id, nom: champs.nom, email: champs.email });
     if (!existant) espacePersonnel(utilisateur, t(req, 'equipe_perso'));
 
@@ -191,6 +198,19 @@ routeur.get('/moi', exigerConnexion, (req, res) => {
   res.json({ utilisateur: req.utilisateur, espaces: espacesDe(req.utilisateur) });
 });
 
+// Les comptes qui n'ont pas accepté la version actuelle des Conditions doivent le faire à la connexion.
+routeur.get('/conditions', exigerConnexion, (req, res) => {
+  const ligne = db.prepare('SELECT conditions_version FROM utilisateurs WHERE id = ?').get(req.utilisateur.id);
+  res.json({ a_jour: ligne?.conditions_version === legal.VERSION, version: legal.VERSION });
+});
+routeur.post('/conditions', exigerConnexion, (req, res) => {
+  if (req.body?.accepte_conditions !== true || req.body?.accepte_hebergement !== true) {
+    return res.status(400).json({ erreur: t(req, 'conditions_requises') });
+  }
+  accepterConditions(req.utilisateur.id);
+  res.json({ ok: true });
+});
+
 // ---------- Droits sur ses données (loi 18-07) ----------
 
 // Télécharger ses données : fichier JSON (le contenu des fichiers déposés se télécharge depuis Nadwa).
@@ -200,7 +220,7 @@ routeur.get('/moi/donnees', exigerConnexion, (req, res) => {
   const donnees = {
     exporte_le: new Date().toISOString(),
     compte: db.prepare(`SELECT id, nom, email, langue, cree_le, statut_choisi, notif_email, notif_push,
-      conditions_acceptees_le, conditions_version FROM utilisateurs WHERE id = ?`).get(id),
+      conditions_acceptees_le, conditions_version, hebergement_accepte_le FROM utilisateurs WHERE id = ?`).get(id),
     organisations: tout(`SELECT e.id, e.nom, a.role, a.rejoint_le FROM adhesions a JOIN espaces e ON e.id = a.espace_id WHERE a.utilisateur_id = ?`, id),
     equipes_proprietaire: tout('SELECT id, nom, cree_le FROM classes WHERE responsable_id = ?', id),
     equipes_membre: tout('SELECT c.id, c.nom, m.rejoint_le FROM membres m JOIN classes c ON c.id = m.classe_id WHERE m.utilisateur_id = ?', id),

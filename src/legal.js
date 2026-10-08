@@ -5,7 +5,7 @@
  */
 const config = require('./config');
 
-const VERSION = '2026-10';
+const VERSION = '2026-10-2';
 const LANGUES = ['en', 'fr', 'ar'];
 const LOCALES = { en: 'en-GB', fr: 'fr-FR', ar: 'ar-DZ' };
 
@@ -41,7 +41,19 @@ function variables(langue) {
     fr: fin ? `${mois} mois, jusqu'au ${dateLongue(fin, langue)}` : `${mois} mois à compter du lancement officiel`,
     ar: fin ? `${mois} شهرًا، حتى ${dateLongue(fin, langue)}` : `${mois} شهرًا ابتداءً من الإطلاق الرسمي`,
   }[langue];
+  const consentement = {
+    en: config.hebergementAlgerie
+      ? 'in Algeria, and outside Algeria only to send emails and notifications'
+      : 'including outside Algeria during the pilot phase (Germany; France for emails; notification services)',
+    fr: config.hebergementAlgerie
+      ? "en Algérie, et hors d'Algérie uniquement pour l'envoi des e-mails et des notifications"
+      : "y compris hors d'Algérie pendant la phase pilote (Allemagne ; France pour les e-mails ; services de notifications)",
+    ar: config.hebergementAlgerie
+      ? 'في الجزائر، وخارجها فقط لإرسال رسائل البريد الإلكتروني والإشعارات'
+      : 'بما في ذلك خارج الجزائر خلال المرحلة التجريبية (ألمانيا؛ فرنسا لرسائل البريد الإلكتروني؛ خدمات الإشعارات)',
+  }[langue];
   return {
+    consentement: esc(consentement),
     editeur: esc(config.editeur + (config.editeurAdresse ? `, ${config.editeurAdresse}` : '')),
     contact: `<a href="mailto:${esc(config.contactEmail)}" dir="ltr">${esc(config.contactEmail)}</a>`,
     lieu: esc(lieu),
@@ -62,11 +74,12 @@ const DOCUMENTS = {
         ['4. Acceptable use', 'It is forbidden to publish illegal, hateful, violent or defamatory content; to harass other people; to send spam; to try to access other people\'s accounts or to disrupt the service; and to record a meeting without the participants\' consent.'],
         ['5. Your content', 'Messages, files and other content remain yours. You allow Nadwa to store and display them to the people you share them with, only to provide the service. You are responsible for the content you publish.'],
         ['6. Availability and limits', 'We do our best to keep Nadwa available and secure, but cannot guarantee uninterrupted service. To keep the platform fair for everyone, usage limits may apply (number of participants, meeting length, simultaneous meetings).'],
-        ['7. Suspension and deletion', 'An account that breaks these terms may be suspended or deleted. You can delete your account at any time from "My profile".'],
-        ['8. Personal data', 'How your data is handled is described in the <a href="/confidentialite?lang=en">Privacy policy</a>.'],
-        ['9. Changes', 'These terms may change; you will be informed of important changes in Nadwa or by email.'],
-        ['10. Applicable law', 'These terms are governed by Algerian law. Any dispute that cannot be settled amicably falls under the jurisdiction of the competent Algerian courts.'],
-        ['11. Contact', 'Questions: {contact}.'],
+        ['7. Security and liability', 'Nadwa applies appropriate security measures (section 7 of the Privacy policy), but no system connected to the Internet is invulnerable. To the extent permitted by law, Nadwa is not liable for damage resulting from: an unlawful intrusion or attack committed by a third party despite these measures; disclosure of data by you or by the people you share it with (team members, guests, screenshots, forwarding); use of your account by someone you gave your password to; an outage or failure of external networks and providers (Internet operators, hosting provider, email service); or force majeure. You agree to keep your password secret and to report any suspicious use of your account without delay. If an incident affects your data, Nadwa informs the ANPDP and the people concerned as required by law. Nothing in these terms limits Nadwa\'s liability where the law does not allow it.'],
+        ['8. Suspension and deletion', 'An account that breaks these terms may be suspended or deleted. You can delete your account at any time from "My profile".'],
+        ['9. Personal data', 'How your data is handled is described in the <a href="/confidentialite?lang=en">Privacy policy</a>.'],
+        ['10. Changes', 'These terms may change; you will be informed of important changes in Nadwa or by email.'],
+        ['11. Applicable law', 'These terms are governed by Algerian law. Any dispute that cannot be settled amicably falls under the jurisdiction of the competent Algerian courts.'],
+        ['12. Contact', 'Questions: {contact}.'],
       ],
     },
     fr: {
@@ -78,11 +91,12 @@ const DOCUMENTS = {
         ['4. Bon usage', "Il est interdit de publier des contenus illicites, haineux, violents ou diffamatoires ; de harceler d'autres personnes ; d'envoyer des messages indésirables ; de tenter d'accéder aux comptes d'autrui ou de perturber le service ; d'enregistrer une réunion sans l'accord des participants."],
         ['5. Vos contenus', "Vos messages, fichiers et autres contenus restent les vôtres. Vous autorisez Nadwa à les stocker et à les afficher aux personnes avec qui vous les partagez, uniquement pour rendre le service. Vous êtes responsable des contenus que vous publiez."],
         ['6. Disponibilité et limites', "Nous faisons de notre mieux pour que Nadwa reste disponible et sûre, sans pouvoir garantir un service sans interruption. Pour que la plateforme reste équitable, des limites d'usage peuvent s'appliquer (nombre de participants, durée des réunions, réunions simultanées)."],
-        ['7. Suspension et suppression', "Un compte qui ne respecte pas ces conditions peut être suspendu ou supprimé. Vous pouvez supprimer votre compte à tout moment depuis « Mon profil »."],
-        ['8. Données personnelles', 'Le traitement de vos données est décrit dans la <a href="/confidentialite?lang=fr">Politique de confidentialité</a>.'],
-        ['9. Modifications', 'Ces conditions peuvent évoluer ; les changements importants vous seront annoncés dans Nadwa ou par e-mail.'],
-        ['10. Droit applicable', "Ces conditions sont soumises au droit algérien. Tout litige qui ne peut être réglé à l'amiable relève des juridictions algériennes compétentes."],
-        ['11. Contact', 'Questions : {contact}.'],
+        ['7. Sécurité et responsabilité', "Nadwa met en œuvre des mesures de sécurité adaptées (section 7 de la Politique de confidentialité), mais aucun système connecté à Internet n'est invulnérable. Dans la limite permise par la loi, Nadwa n'est pas responsable des dommages résultant : d'une intrusion ou d'une attaque illicite commise par un tiers malgré ces mesures ; de la divulgation de données par vous-même ou par les personnes avec qui vous les partagez (membres d'équipe, invités, captures d'écran, transferts) ; de l'utilisation de votre compte par une personne à qui vous avez communiqué votre mot de passe ; d'une panne ou défaillance des réseaux et prestataires extérieurs (opérateurs Internet, hébergeur, service d'e-mails) ; d'un cas de force majeure. Vous vous engagez à garder votre mot de passe secret et à signaler sans délai toute utilisation suspecte de votre compte. En cas d'incident touchant vos données, Nadwa en informe l'ANPDP et les personnes concernées comme la loi l'exige. Rien dans ces conditions ne limite la responsabilité de Nadwa lorsque la loi l'interdit."],
+        ['8. Suspension et suppression', "Un compte qui ne respecte pas ces conditions peut être suspendu ou supprimé. Vous pouvez supprimer votre compte à tout moment depuis « Mon profil »."],
+        ['9. Données personnelles', 'Le traitement de vos données est décrit dans la <a href="/confidentialite?lang=fr">Politique de confidentialité</a>.'],
+        ['10. Modifications', 'Ces conditions peuvent évoluer ; les changements importants vous seront annoncés dans Nadwa ou par e-mail.'],
+        ['11. Droit applicable', "Ces conditions sont soumises au droit algérien. Tout litige qui ne peut être réglé à l'amiable relève des juridictions algériennes compétentes."],
+        ['12. Contact', 'Questions : {contact}.'],
       ],
     },
     ar: {
@@ -94,11 +108,12 @@ const DOCUMENTS = {
         ['4. حسن الاستخدام', 'يُمنع نشر محتوى غير قانوني أو يحض على الكراهية أو العنف أو التشهير، ومضايقة الآخرين، وإرسال الرسائل المزعجة، ومحاولة الدخول إلى حسابات الغير أو تعطيل الخدمة، وتسجيل اجتماع دون موافقة المشاركين.'],
         ['5. محتواك', 'تبقى رسائلك وملفاتك وسائر محتواك ملكًا لك. وتأذن لندوة بتخزينها وعرضها على الأشخاص الذين تشاركها معهم، لغرض تقديم الخدمة فقط. وأنت مسؤول عن المحتوى الذي تنشره.'],
         ['6. التوفر والحدود', 'نبذل قصارى جهدنا لتبقى ندوة متاحة وآمنة، دون أن نضمن خدمة بلا انقطاع. ولضمان الإنصاف بين الجميع، قد تُطبّق حدود للاستخدام (عدد المشاركين، مدة الاجتماعات، الاجتماعات المتزامنة).'],
-        ['7. التعليق والحذف', 'يمكن تعليق أو حذف أي حساب يخالف هذه الشروط. ويمكنك حذف حسابك في أي وقت من «ملفي الشخصي».'],
-        ['8. البيانات الشخصية', 'تُوضَّح معالجة بياناتك في <a href="/confidentialite?lang=ar">سياسة الخصوصية</a>.'],
-        ['9. التعديلات', 'قد تتغير هذه الشروط، وسيتم إعلامك بالتغييرات المهمة داخل ندوة أو عبر البريد الإلكتروني.'],
-        ['10. القانون المطبق', 'تخضع هذه الشروط للقانون الجزائري. وكل نزاع يتعذر حله وديًا يكون من اختصاص الجهات القضائية الجزائرية المختصة.'],
-        ['11. التواصل', 'للاستفسار: {contact}.'],
+        ['7. الأمان والمسؤولية', 'تطبّق ندوة تدابير أمنية ملائمة (القسم 7 من سياسة الخصوصية)، غير أنه لا يوجد نظام متصل بالإنترنت محصّن تمامًا. وفي الحدود التي يسمح بها القانون، لا تتحمل ندوة المسؤولية عن الأضرار الناتجة عن: اختراق أو هجوم غير مشروع يرتكبه طرف ثالث رغم هذه التدابير؛ إفشاء البيانات من قِبلك أو من قِبل الأشخاص الذين تشاركها معهم (أعضاء الفرق، المدعوون، لقطات الشاشة، إعادة الإرسال)؛ استخدام حسابك من قِبل شخص أعطيته كلمة المرور؛ عطل أو خلل في الشبكات ومقدّمي الخدمات الخارجيين (مشغلو الإنترنت، مزوّد الاستضافة، خدمة البريد الإلكتروني)؛ أو القوة القاهرة. وتلتزم بالحفاظ على سرية كلمة المرور وبالإبلاغ دون تأخير عن أي استخدام مشبوه لحسابك. وفي حال وقوع حادث يمس بياناتك، تُبلغ ندوة السلطة الوطنية لحماية المعطيات ذات الطابع الشخصي والأشخاص المعنيين وفقًا لما يقتضيه القانون. ولا يحدّ أي بند من هذه الشروط من مسؤولية ندوة حيث لا يجيز القانون ذلك.'],
+        ['8. التعليق والحذف', 'يمكن تعليق أو حذف أي حساب يخالف هذه الشروط. ويمكنك حذف حسابك في أي وقت من «ملفي الشخصي».'],
+        ['9. البيانات الشخصية', 'تُوضَّح معالجة بياناتك في <a href="/confidentialite?lang=ar">سياسة الخصوصية</a>.'],
+        ['10. التعديلات', 'قد تتغير هذه الشروط، وسيتم إعلامك بالتغييرات المهمة داخل ندوة أو عبر البريد الإلكتروني.'],
+        ['11. القانون المطبق', 'تخضع هذه الشروط للقانون الجزائري. وكل نزاع يتعذر حله وديًا يكون من اختصاص الجهات القضائية الجزائرية المختصة.'],
+        ['12. التواصل', 'للاستفسار: {contact}.'],
       ],
     },
   },
@@ -110,10 +125,10 @@ const DOCUMENTS = {
         ['1. Who is responsible', 'The data controller is {editeur}. Contact for any question or request about your data: {contact}. Nadwa follows Algerian law 18-07 on the protection of personal data, as amended.'],
         ['2. Data we collect', 'Account: name, email address, password (stored encrypted, never in plain text), language, presence status and notification settings. Content: teams, channels, messages, conversations, shared files, meetings and invitations. Notifications: an anonymous token for your device if you enable notifications. Support: messages sent to support and meeting-quality ratings. Video meetings are not recorded: sound and video are only transmitted live.'],
         ['3. Why', 'To create and manage your account; to let you work with your teams; to hold video meetings; to send verification emails, meeting reminders and notifications; to answer support requests and improve quality; after the free period, to manage subscriptions.'],
-        ['4. Where your data is stored', 'Your data is hosted {lieu}.'],
+        ['4. Where your data is stored', 'Your data is hosted {lieu}. By creating an account, you expressly agree that your data is stored and processed on the servers used by Nadwa and its providers (section 5), {consentement}.'],
         ['5. Who can see it', 'Members of your teams see your name, status and what you share with them. Our providers only process data to run the service: the hosting provider, the email sending service (Brevo), your browser\'s notification service (Google, Mozilla or Apple) and Cloudflare (domain name). Your data is never sold or used for advertising.'],
         ['6. How long', 'Your account and content are kept as long as your account exists. Teams and their files are deleted when the team is deleted. Verification links expire within 48 hours. Support messages and ratings are kept for 2 years. Usage statistics contain no identity.'],
-        ['7. Security', 'Encrypted connections (HTTPS), encrypted passwords, email verification, private meeting rooms, access to teams limited to their members, and daily backups.'],
+        ['7. Security', 'Encrypted connections (HTTPS), encrypted passwords, email verification, private meeting rooms, access to teams limited to their members, and daily backups. No system is completely secure: if an incident affects your data, we inform the ANPDP and the people concerned as required by law.'],
         ['8. Your rights', 'You can access, correct and delete your data and object to notifications. From "My profile": download your data and delete your account. For anything else, write to {contact}. You can also file a complaint with the national authority for personal data protection (ANPDP).'],
         ['9. Cookies', 'Nadwa only uses one cookie, needed to keep you signed in, and stores your language choice in your browser. No advertising or tracking cookies.'],
         ['10. Changes', 'This policy may change; you will be informed of important changes. Version {version}.'],
@@ -125,10 +140,10 @@ const DOCUMENTS = {
         ['1. Responsable', "Le responsable du traitement est {editeur}. Contact pour toute question ou demande sur vos données : {contact}. Nadwa respecte la loi algérienne 18-07 relative à la protection des données personnelles, telle que modifiée."],
         ['2. Données collectées', "Compte : nom, adresse e-mail, mot de passe (stocké chiffré, jamais en clair), langue, statut de présence et réglages de notification. Contenus : équipes, canaux, messages, conversations, fichiers partagés, réunions et invitations. Notifications : un jeton anonyme de votre appareil si vous activez les notifications. Assistance : messages envoyés au support et évaluations de qualité des réunions. Les réunions vidéo ne sont pas enregistrées : le son et l'image sont seulement transmis en direct."],
         ['3. Pourquoi', "Créer et gérer votre compte ; vous permettre de travailler avec vos équipes ; tenir les réunions en visio ; envoyer les e-mails de vérification, les rappels de réunion et les notifications ; répondre au support et améliorer la qualité ; après la période gratuite, gérer les abonnements."],
-        ['4. Où sont vos données', 'Vos données sont hébergées {lieu}.'],
+        ['4. Où sont vos données', "Vos données sont hébergées {lieu}. En créant votre compte, vous acceptez expressément que vos données soient stockées et traitées sur les serveurs utilisés par Nadwa et ses prestataires (section 5), {consentement}."],
         ['5. Qui peut les voir', "Les membres de vos équipes voient votre nom, votre statut et ce que vous partagez avec eux. Nos prestataires ne traitent les données que pour faire fonctionner le service : l'hébergeur, le service d'envoi d'e-mails (Brevo), le service de notifications de votre navigateur (Google, Mozilla ou Apple) et Cloudflare (nom de domaine). Vos données ne sont jamais vendues ni utilisées pour de la publicité."],
         ['6. Durée de conservation', "Votre compte et vos contenus sont conservés tant que votre compte existe. Une équipe et ses fichiers sont effacés quand l'équipe est supprimée. Les liens de vérification expirent sous 48 heures. Les messages au support et les évaluations sont gardés 2 ans. Les statistiques d'usage ne contiennent aucune identité."],
-        ['7. Sécurité', "Connexions chiffrées (HTTPS), mots de passe chiffrés, vérification de l'adresse e-mail, salles de visio privées, accès aux équipes réservé à leurs membres, sauvegardes quotidiennes."],
+        ['7. Sécurité', "Connexions chiffrées (HTTPS), mots de passe chiffrés, vérification de l'adresse e-mail, salles de visio privées, accès aux équipes réservé à leurs membres, sauvegardes quotidiennes. Aucun système n'est totalement sûr : en cas d'incident touchant vos données, nous en informons l'ANPDP et les personnes concernées comme la loi l'exige."],
         ['8. Vos droits', "Vous pouvez accéder à vos données, les rectifier, les effacer et vous opposer aux notifications. Depuis « Mon profil » : télécharger vos données et supprimer votre compte. Pour toute autre demande, écrivez à {contact}. Vous pouvez aussi saisir l'Autorité nationale de protection des données à caractère personnel (ANPDP)."],
         ['9. Cookies', "Nadwa n'utilise qu'un cookie, nécessaire pour rester connecté, et garde votre choix de langue dans votre navigateur. Aucun cookie publicitaire ni traceur."],
         ['10. Modifications', 'Cette politique peut évoluer ; les changements importants vous seront annoncés. Version {version}.'],
@@ -140,10 +155,10 @@ const DOCUMENTS = {
         ['1. المسؤول', 'المسؤول عن المعالجة هو {editeur}. للتواصل بشأن أي سؤال أو طلب يخص بياناتك: {contact}. تلتزم ندوة بالقانون الجزائري 18-07 المتعلق بحماية الأشخاص الطبيعيين في مجال معالجة المعطيات ذات الطابع الشخصي، كما عُدّل.'],
         ['2. البيانات التي نجمعها', 'الحساب: الاسم، البريد الإلكتروني، كلمة المرور (مخزّنة مشفّرة ولا تُحفظ أبدًا كنص واضح)، اللغة، حالة التواجد وإعدادات الإشعارات. المحتوى: الفرق، القنوات، الرسائل، المحادثات، الملفات المشتركة، الاجتماعات والدعوات. الإشعارات: رمز مجهول لجهازك إذا فعّلت الإشعارات. الدعم: الرسائل المرسلة إلى الدعم وتقييمات جودة الاجتماعات. لا تُسجَّل الاجتماعات المرئية: يُنقل الصوت والصورة مباشرة فقط.'],
         ['3. لماذا', 'إنشاء حسابك وإدارته؛ تمكينك من العمل مع فرقك؛ عقد الاجتماعات المرئية؛ إرسال رسائل التحقق وتذكيرات الاجتماعات والإشعارات؛ الرد على طلبات الدعم وتحسين الجودة؛ وبعد الفترة المجانية، إدارة الاشتراكات.'],
-        ['4. أين تُخزَّن بياناتك', 'تُستضاف بياناتك {lieu}.'],
+        ['4. أين تُخزَّن بياناتك', 'تُستضاف بياناتك {lieu}. وبإنشائك حسابًا، توافق صراحةً على تخزين بياناتك ومعالجتها على الخوادم التي تستخدمها ندوة ومزوّدوها (القسم 5)، {consentement}.'],
         ['5. من يمكنه الاطلاع عليها', 'يرى أعضاء فرقك اسمك وحالتك وما تشاركه معهم. لا يعالج مزوّدونا البيانات إلا لتشغيل الخدمة: مزوّد الاستضافة، وخدمة إرسال البريد الإلكتروني (Brevo)، وخدمة إشعارات متصفحك (Google أو Mozilla أو Apple)، وCloudflare (اسم النطاق). لا تُباع بياناتك أبدًا ولا تُستخدم للإعلانات.'],
         ['6. مدة الاحتفاظ', 'يُحتفظ بحسابك ومحتواك ما دام حسابك قائمًا. تُحذف الفرقة وملفاتها عند حذفها. تنتهي صلاحية روابط التحقق خلال 48 ساعة. تُحفظ رسائل الدعم والتقييمات لمدة سنتين. لا تحتوي إحصاءات الاستخدام على أي هوية.'],
-        ['7. الأمان', 'اتصالات مشفّرة (HTTPS)، كلمات مرور مشفّرة، التحقق من البريد الإلكتروني، قاعات اجتماعات خاصة، دخول الفرق مقصور على أعضائها، ونسخ احتياطية يومية.'],
+        ['7. الأمان', 'اتصالات مشفّرة (HTTPS)، كلمات مرور مشفّرة، التحقق من البريد الإلكتروني، قاعات اجتماعات خاصة، دخول الفرق مقصور على أعضائها، ونسخ احتياطية يومية. لا يوجد نظام آمن تمامًا: في حال وقوع حادث يمس بياناتك، نُبلغ السلطة الوطنية لحماية المعطيات ذات الطابع الشخصي والأشخاص المعنيين وفقًا لما يقتضيه القانون.'],
         ['8. حقوقك', 'يحق لك الاطلاع على بياناتك وتصحيحها وحذفها والاعتراض على الإشعارات. من «ملفي الشخصي»: تنزيل بياناتك وحذف حسابك. ولأي طلب آخر راسلنا على {contact}. كما يمكنك تقديم شكوى إلى السلطة الوطنية لحماية المعطيات ذات الطابع الشخصي (ANPDP).'],
         ['9. ملفات تعريف الارتباط', 'لا تستخدم ندوة سوى ملف تعريف ارتباط واحد ضروري لإبقائك متصلًا، وتحفظ اختيارك للغة في متصفحك. لا توجد ملفات تعريف ارتباط إعلانية أو للتتبع.'],
         ['10. التعديلات', 'قد تتغير هذه السياسة، وسيتم إعلامك بالتغييرات المهمة. الإصدار {version}.'],
@@ -203,7 +218,7 @@ function brancher(app) {
 /** Informations publiques affichées sur la page d'accueil. */
 function infos() {
   const fin = finGratuite();
-  return { mois_gratuits: config.moisGratuits, gratuit_jusqu_au: fin ? fin.toISOString().slice(0, 10) : null, conditions_version: VERSION, limites: config.limites };
+  return { hebergement_algerie: config.hebergementAlgerie, mois_gratuits: config.moisGratuits, gratuit_jusqu_au: fin ? fin.toISOString().slice(0, 10) : null, conditions_version: VERSION, limites: config.limites };
 }
 
 module.exports = { VERSION, brancher, infos };

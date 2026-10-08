@@ -46,6 +46,7 @@
           <label><span data-i18n="mot_de_passe"></span><input name="mot_de_passe" type="password" required minlength="8" autocomplete="current-password"></label>
           <button type="button" class="btn-lien lien-oubli" id="btn-oubli" data-i18n="mdp_oublie"></button>
           <label class="case" data-inscription hidden><input type="checkbox" name="accepte_conditions"><span data-liens-conditions></span></label>
+          <label class="case" data-inscription hidden><input type="checkbox" name="accepte_hebergement"><span data-texte-hebergement></span></label>
           <p class="erreur" id="auth-erreur" role="alert"></p>
           <button class="btn btn-accent btn-grand" type="submit" id="auth-soumettre"></button>
         </form>
@@ -405,6 +406,20 @@
       <div class="dlg-actions">
         <button type="button" class="btn btn-contour" data-fermer data-i18n="annuler"></button>
         <button type="submit" class="btn btn-accent" data-i18n="enregistrer"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-conditions">
+    <form>
+      <h2 data-i18n="conditions_maj_titre"></h2>
+      <p data-i18n="conditions_maj_texte"></p>
+      <label class="case"><input type="checkbox" name="accepte_conditions" required><span data-liens-conditions></span></label>
+      <label class="case"><input type="checkbox" name="accepte_hebergement" required><span data-texte-hebergement></span></label>
+      <p class="erreur" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-contour" id="conditions-refuser" data-i18n="se_deconnecter"></button>
+        <button type="submit" class="btn btn-accent" data-i18n="accepter_continuer"></button>
       </div>
     </form>
   </dialog>
