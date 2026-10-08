@@ -41,6 +41,13 @@ routeur.post('/:id/rejoindre', async (req, res, next) => {
   }
 });
 
+// État de la réunion : l'onglet Nadwa le surveille pour fermer la visio quand elle est terminée.
+routeur.get('/:id/etat', (req, res) => {
+  const acces = trouver(req, res);
+  if (!acces) return;
+  res.json({ etat: etatSeance(acces.seance) });
+});
+
 // Participants : toute l'équipe + les personnes invitées.
 routeur.get('/:id/participants', (req, res) => {
   const acces = trouver(req, res);

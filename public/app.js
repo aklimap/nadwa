@@ -190,7 +190,11 @@ async function api(path, { method = 'GET', body } = {}) {
   });
   let data = null;
   try { data = await res.json(); } catch { /* réponse vide */ }
-  if (!res.ok) throw new Error(data?.erreur || t('erreur_n', { n: res.status }));
+  if (!res.ok) {
+    const err = new Error(data?.erreur || t('erreur_n', { n: res.status }));
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 
@@ -352,6 +356,7 @@ function connectSocket() {
   });
   socket.on('canaux:maj', ({ classe_id }) => { if (classe_id === state.teamId) loadChannels(); });
   socket.on('seances:maj', ({ classe_id }) => {
+    checkVisio();
     if (state.view === 'agenda') loadCalendar();
     if (classe_id === state.teamId) loadMeetings();
   });
@@ -978,6 +983,30 @@ function attachPreview() {
   zone.prepend(v);
 }
 
+// ---------- Onglet de visio ----------
+// Quand l'organisateur termine la réunion, elle se ferme pour tout le monde : chaque page Nadwa
+// surveille l'onglet de visio qu'elle a ouvert et le ferme dès que la réunion est terminée.
+const visio = { win: null, etat: null, timer: null };
+function watchVisio(win, etat) {
+  stopVisioWatch();
+  if (!win) return;
+  Object.assign(visio, { win, etat, timer: setInterval(checkVisio, 10_000) });
+}
+function stopVisioWatch() {
+  clearInterval(visio.timer);
+  Object.assign(visio, { win: null, etat: null, timer: null });
+}
+async function checkVisio() {
+  if (!visio.win) return;
+  if (visio.win.closed) { stopVisioWatch(); return; }
+  const win = visio.win;
+  const etat = await visio.etat().catch((err) => (err.status === 404 ? 'terminee' : null));
+  if (etat !== 'terminee' || visio.win !== win) return;
+  try { win.close(); } catch { /* onglet déjà fermé */ }
+  stopVisioWatch();
+  toast(t('reunion_terminee_ok'));
+}
+
 async function joinNow(form) {
   // L'onglet de la visio s'ouvre tout de suite (dans le clic) pour ne pas être bloqué.
   const win = window.NADWA_OUVRIR_VISIO ? null : window.open('', '_blank');
@@ -991,8 +1020,14 @@ async function joinNow(form) {
       : await api(`/seances/${prejoin.id}/rejoindre`, { method: 'POST', body: options });
     stopPreview();
     if (window.NADWA_OUVRIR_VISIO) window.NADWA_OUVRIR_VISIO(url);
-    else if (win) { win.opener = null; win.location.href = url; toast(t('ouverture_onglet')); }
-    else location.href = url;
+    else if (win) {
+      // Le lien avec l'onglet est conservé (pas de win.opener = null) : sans lui, Nadwa ne
+      // pourrait plus fermer la visio à la fin de la réunion. La visio est notre propre serveur.
+      win.location.href = url;
+      toast(t('ouverture_onglet'));
+      const { mode, id, jeton } = prejoin;
+      watchVisio(win, async () => (await api(mode === 'invite' ? `/invite/${jeton}` : `/seances/${id}/etat`)).etat);
+    } else location.href = url;
   } catch (err) {
     win?.close();
     $('.erreur', form).textContent = err.message;
@@ -1304,6 +1339,7 @@ async function endMeeting(id) {
   if (!confirm(t('confirmer_fin_reunion'))) return;
   try {
     await api(`/seances/${id}/terminer`, { method: 'POST' });
+    checkVisio(); // ferme aussi l'onglet de visio de l'organisateur
     if ($('#dlg-reunion').open) $('#dlg-reunion').close();
     toast(t('reunion_terminee_ok'));
     loadMeetings();
