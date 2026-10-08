@@ -65,6 +65,18 @@
     <div class="avant-contenu" id="avant-contenu"></div>
   </main>
 
+  <!-- ============ Visio dans la page (comme Teams) ============ -->
+  <div id="ecran-visio" class="visio" hidden>
+    <header class="visio-barre">
+      <strong class="visio-titre" id="visio-titre"></strong>
+      <div class="visio-actions">
+        <button class="btn btn-danger" id="visio-terminer" data-i18n="terminer_pour_tous" hidden></button>
+        <button class="btn btn-contour-clair" id="visio-quitter" data-i18n="quitter"></button>
+      </div>
+    </header>
+    <div class="visio-cadre" id="visio-cadre"></div>
+  </div>
+
   <!-- ============ Application ============ -->
   <div id="ecran-app" class="app" hidden>
     <nav class="rail" data-i18n-aria="nav_principale">

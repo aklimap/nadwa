@@ -983,53 +983,115 @@ function attachPreview() {
   zone.prepend(v);
 }
 
-// ---------- Onglet de visio ----------
-// Quand l'organisateur termine la réunion, elle se ferme pour tout le monde : chaque page Nadwa
-// surveille l'onglet de visio qu'elle a ouvert et le ferme dès que la réunion est terminée.
-const visio = { win: null, etat: null, timer: null };
-function watchVisio(win, etat) {
-  stopVisioWatch();
-  if (!win) return;
-  Object.assign(visio, { win, etat, timer: setInterval(checkVisio, 10_000) });
+// ---------- Visio dans la page (comme Teams) ----------
+// La réunion s'affiche par-dessus Nadwa, dans un seul onglet. « Quitter » ramène à Nadwa ;
+// « Terminer pour tous » (organisateur) ferme la réunion pour tout le monde. Chaque page
+// vérifie aussi l'état de la réunion et ferme la visio dès qu'elle est terminée.
+const visio = { api: null, etat: null, timer: null, seanceId: null };
+let chargementApiJitsi = null;
+
+function chargerApiJitsi(domaine) {
+  if (window.JitsiMeetExternalAPI) return Promise.resolve();
+  chargementApiJitsi ??= new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = `https://${domaine}/external_api.js`;
+    script.onload = resolve;
+    script.onerror = () => { chargementApiJitsi = null; reject(new Error(t('visio_indisponible'))); };
+    document.head.append(script);
+  });
+  return chargementApiJitsi;
 }
-function stopVisioWatch() {
+
+/**
+ * Ouvre la visio. reponse = réponse de l'API (/rejoindre ou /appel).
+ * options : titre, etat (fonction qui renvoie l'état de la réunion), seanceId (si l'on peut la terminer).
+ */
+async function openVisio(reponse, { titre = '', etat = null, seanceId = null } = {}) {
+  const v = reponse.integration;
+  if (window.NADWA_OUVRIR_VISIO) { window.NADWA_OUVRIR_VISIO(reponse.url); return; }
+  if (!v) { // BigBlueButton : nouvel onglet
+    if (!window.open(reponse.url, '_blank')) location.href = reponse.url;
+    return;
+  }
+  await chargerApiJitsi(v.domaine);
+  closeVisio(false);
+  $('#visio-titre').textContent = titre;
+  $('#visio-terminer').hidden = !seanceId;
+  $('#ecran-visio').hidden = false;
+  const api = new window.JitsiMeetExternalAPI(v.domaine, {
+    roomName: v.salle,
+    jwt: v.jwt || undefined,
+    parentNode: $('#visio-cadre'),
+    width: '100%',
+    height: '100%',
+    lang: window.NADWA_LANGUE,
+    userInfo: { displayName: v.nom },
+    configOverwrite: {
+      startWithAudioMuted: !v.micro,
+      startWithVideoMuted: !v.camera,
+      prejoinConfig: { enabled: false },
+      disableDeepLinking: true,
+      enableClosePage: false,
+    },
+  });
+  Object.assign(visio, { api, etat, seanceId, timer: etat ? setInterval(checkVisio, 10_000) : null });
+  // Raccrocher dans la visio, ou être exclu quand l'organisateur termine : retour à Nadwa.
+  api.addListener('videoConferenceLeft', () => closeVisio());
+  api.addListener('readyToClose', () => closeVisio());
+}
+
+function closeVisio(rafraichir = true) {
   clearInterval(visio.timer);
-  Object.assign(visio, { win: null, etat: null, timer: null });
+  const api = visio.api;
+  Object.assign(visio, { api: null, etat: null, timer: null, seanceId: null });
+  if (api) { try { api.dispose(); } catch { /* déjà fermée */ } }
+  $('#visio-cadre').innerHTML = '';
+  $('#ecran-visio').hidden = true;
+  if (rafraichir && api && state.me) {
+    loadMeetings();
+    if (state.view === 'agenda') loadCalendar();
+  }
 }
+
 async function checkVisio() {
-  if (!visio.win) return;
-  if (visio.win.closed) { stopVisioWatch(); return; }
-  const win = visio.win;
+  if (!visio.api || !visio.etat) return;
+  const api = visio.api;
   const etat = await visio.etat().catch((err) => (err.status === 404 ? 'terminee' : null));
-  if (etat !== 'terminee' || visio.win !== win) return;
-  try { win.close(); } catch { /* onglet déjà fermé */ }
-  stopVisioWatch();
+  if (etat !== 'terminee' || visio.api !== api) return;
+  closeVisio();
   toast(t('reunion_terminee_ok'));
 }
 
+$('#visio-quitter').addEventListener('click', () => closeVisio());
+$('#visio-terminer').addEventListener('click', async () => {
+  const id = visio.seanceId;
+  if (!id || !confirm(t('confirmer_fin_reunion'))) return;
+  try {
+    await api(`/seances/${id}/terminer`, { method: 'POST' });
+    try { visio.api?.executeCommand('endConference'); } catch { /* ancienne version de Jitsi */ }
+    setTimeout(() => closeVisio(), 800);
+    toast(t('reunion_terminee_ok'));
+  } catch (err) { toast(err.message); }
+});
+
 async function joinNow(form) {
-  // L'onglet de la visio s'ouvre tout de suite (dans le clic) pour ne pas être bloqué.
-  const win = window.NADWA_OUVRIR_VISIO ? null : window.open('', '_blank');
   const button = $('[type=submit]', form);
   button.disabled = true;
   $('.erreur', form).textContent = '';
   const options = { micro: prejoin.micro, camera: prejoin.camera };
   try {
-    const { url } = prejoin.mode === 'invite'
+    const reponse = prejoin.mode === 'invite'
       ? await api(`/invite/${prejoin.jeton}/rejoindre`, { method: 'POST', body: { nom: form.nom.value, ...options } })
       : await api(`/seances/${prejoin.id}/rejoindre`, { method: 'POST', body: options });
     stopPreview();
-    if (window.NADWA_OUVRIR_VISIO) window.NADWA_OUVRIR_VISIO(url);
-    else if (win) {
-      // Le lien avec l'onglet est conservé (pas de win.opener = null) : sans lui, Nadwa ne
-      // pourrait plus fermer la visio à la fin de la réunion. La visio est notre propre serveur.
-      win.location.href = url;
-      toast(t('ouverture_onglet'));
-      const { mode, id, jeton } = prejoin;
-      watchVisio(win, async () => (await api(mode === 'invite' ? `/invite/${jeton}` : `/seances/${id}/etat`)).etat);
-    } else location.href = url;
+    const { mode, id, jeton, info } = prejoin;
+    const organisateur = mode !== 'invite' && info && (info.organisateur_id ? info.organisateur_id === state.me?.id : canHost(info));
+    await openVisio(reponse, {
+      titre: info?.titre || '',
+      etat: async () => (await api(mode === 'invite' ? `/invite/${jeton}` : `/seances/${id}/etat`)).etat,
+      seanceId: organisateur ? id : null,
+    });
   } catch (err) {
-    win?.close();
     $('.erreur', form).textContent = err.message;
   } finally { button.disabled = false; }
 }
@@ -1188,12 +1250,10 @@ function onDirectMessage(m) {
 
 /** Lancer un appel (vidéo ou audio) dans la conversation, ou rejoindre l'appel en cours. */
 async function startCall(convId, video, rejoindre = false) {
-  const win = window.NADWA_OUVRIR_VISIO ? null : window.open('', '_blank');
   try {
-    const { url } = await api(`/conversations/${convId}/appel`, { method: 'POST', body: { rejoindre, camera: video, micro: true } });
-    if (window.NADWA_OUVRIR_VISIO) window.NADWA_OUVRIR_VISIO(url);
-    else if (win) { win.opener = null; win.location.href = url; } else location.href = url;
-  } catch (err) { win?.close(); toast(err.message); }
+    const reponse = await api(`/conversations/${convId}/appel`, { method: 'POST', body: { rejoindre, camera: video, micro: true } });
+    await openVisio(reponse, { titre: t(video ? 'appel_video' : 'appel_audio') });
+  } catch (err) { toast(err.message); }
 }
 const joinCall = (convId) => startCall(convId, true, true);
 
@@ -1339,7 +1399,7 @@ async function endMeeting(id) {
   if (!confirm(t('confirmer_fin_reunion'))) return;
   try {
     await api(`/seances/${id}/terminer`, { method: 'POST' });
-    checkVisio(); // ferme aussi l'onglet de visio de l'organisateur
+    checkVisio(); // ferme aussi la visio si elle est ouverte
     if ($('#dlg-reunion').open) $('#dlg-reunion').close();
     toast(t('reunion_terminee_ok'));
     loadMeetings();

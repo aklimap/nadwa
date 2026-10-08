@@ -23,6 +23,9 @@ app.use(helmet({
       'style-src': ["'self'", 'https://fonts.googleapis.com'],
       'font-src': ["'self'", 'https://fonts.gstatic.com'],
       'connect-src': ["'self'"],
+      // Visio Jitsi affichée dans la page : script de l'API IFrame et cadre de la réunion.
+      'script-src': ["'self'", `https://${config.jitsiDomaine}`],
+      'frame-src': ["'self'", `https://${config.jitsiDomaine}`],
       // En HTTP local, ne pas forcer le passage en HTTPS des ressources.
       'upgrade-insecure-requests': config.cookiesSecurises ? [] : null,
     },

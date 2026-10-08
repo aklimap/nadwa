@@ -108,6 +108,8 @@ async function lienVisio({ seance, classe, utilisateur, moderateur, langue = 'en
   const requete = jeton ? `?jwt=${jeton}` : '';
   return {
     fournisseur: 'jitsi',
+    // Pour afficher la visio dans la page Nadwa (API IFrame de Jitsi), comme Teams.
+    integration: { domaine: config.jitsiDomaine, salle: seance.reunion_id, jwt: jeton, nom: utilisateur.nom, micro, camera },
     // Choix faits avant d'entrer : micro et caméra activés ou coupés au démarrage.
     url: `https://${config.jitsiDomaine}/${salle}${requete}#userInfo.displayName=${nom}&config.startWithAudioMuted=${!micro}&config.startWithVideoMuted=${!camera}&config.prejoinConfig.enabled=false`,
   };
