@@ -57,7 +57,7 @@ routeur.post('/inscription', async (req, res, next) => {
     const champs = lireChamps(req.body);
     const erreur = verifierCompte(champs);
     if (erreur) return res.status(400).json({ erreur: t(req, erreur) });
-    if (req.body?.accepte_conditions !== true || req.body?.accepte_hebergement !== true) return res.status(400).json({ erreur: t(req, 'conditions_requises') });
+    if (req.body?.accepte_conditions !== true) return res.status(400).json({ erreur: t(req, 'conditions_requises') });
     const verifier = mail.actif();
     const existant = db.prepare('SELECT id, email_verifie FROM utilisateurs WHERE email = ?').get(champs.email);
     // Une adresse déjà vérifiée est prise ; une inscription jamais confirmée peut être reprise.
@@ -204,7 +204,7 @@ routeur.get('/conditions', exigerConnexion, (req, res) => {
   res.json({ a_jour: ligne?.conditions_version === legal.VERSION, version: legal.VERSION });
 });
 routeur.post('/conditions', exigerConnexion, (req, res) => {
-  if (req.body?.accepte_conditions !== true || req.body?.accepte_hebergement !== true) {
+  if (req.body?.accepte_conditions !== true) {
     return res.status(400).json({ erreur: t(req, 'conditions_requises') });
   }
   accepterConditions(req.utilisateur.id);

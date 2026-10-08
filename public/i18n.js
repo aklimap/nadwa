@@ -411,8 +411,6 @@ window.NADWA_TEXTES = {
   accepte_conditions: ['I accept the {conditions} and the {confidentialite}.', "J'accepte les {conditions} et la {confidentialite}.", 'أوافق على {conditions} و{confidentialite}.'],
   gratuit_mois: ['Free for {n} months', 'Gratuit pendant {n} mois', 'مجاني لمدة {n} شهرًا'],
   gratuit_jusqu_au: ['Free until {date}', "Gratuit jusqu'au {date}", 'مجاني حتى {date}'],
-  accepte_hebergement_pilote: ["I agree that my data is stored on the servers used by Nadwa, including outside Algeria during the pilot phase.", "J'accepte que mes données soient hébergées sur les serveurs utilisés par Nadwa, y compris hors d'Algérie pendant la phase pilote.", 'أوافق على استضافة بياناتي على الخوادم التي تستخدمها ندوة، بما في ذلك خارج الجزائر خلال المرحلة التجريبية.'],
-  accepte_hebergement_algerie: ['I agree that my data is stored on the servers used by Nadwa in Algeria.', "J'accepte que mes données soient hébergées sur les serveurs utilisés par Nadwa en Algérie.", 'أوافق على استضافة بياناتي على الخوادم التي تستخدمها ندوة في الجزائر.'],
   conditions_maj_titre: ['Updated terms', 'Conditions mises à jour', 'تحديث الشروط'],
   conditions_maj_texte: ['Our terms of use and privacy policy have changed. Please read and accept them to continue using Nadwa.', "Nos conditions d'utilisation et notre politique de confidentialité ont changé. Lisez-les et acceptez-les pour continuer à utiliser Nadwa.", 'تغيّرت شروط الاستخدام وسياسة الخصوصية. يرجى قراءتها وقبولها لمواصلة استخدام ندوة.'],
   accepter_continuer: ['Accept and continue', 'Accepter et continuer', 'قبول ومتابعة'],

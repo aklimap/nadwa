@@ -83,7 +83,7 @@ const MESSAGES = {
   nom_invite: ['Enter your name to join.', 'Indiquez votre nom pour rejoindre.', 'أدخل اسمك للانضمام.'],
   invite_externe: ['guest', 'invité', 'ضيف'],
   equipe_perso: ['My meetings', 'Mes réunions', 'اجتماعاتي'],
-  conditions_requises: ['Please accept the terms of use, the privacy policy and the hosting of your data.', "Veuillez accepter les conditions d'utilisation, la politique de confidentialité et l'hébergement de vos données.", 'يرجى قبول شروط الاستخدام وسياسة الخصوصية واستضافة بياناتك.'],
+  conditions_requises: ['Please accept the terms of use and the privacy policy.', "Veuillez accepter les conditions d'utilisation et la politique de confidentialité.", 'يرجى قبول شروط الاستخدام وسياسة الخصوصية.'],
   suppr_compte_admin: ['The platform administrator account cannot be deleted.', "Le compte administrateur de la plateforme ne peut pas être supprimé.", 'لا يمكن حذف حساب مسؤول المنصة.'],
   limite_participants: ['This meeting is full ({max} people maximum).', 'Cette réunion est complète ({max} personnes au maximum).', 'هذا الاجتماع ممتلئ (الحد الأقصى {max} شخصًا).'],
   limite_reunions: ['Limit reached: {max} simultaneous meeting(s) per organization. Try again when a meeting ends.', 'Limite atteinte : {max} réunion(s) en même temps par organisation. Réessayez quand une réunion sera terminée.', 'تم بلوغ الحد: {max} اجتماع(ات) في الوقت نفسه لكل مؤسسة. أعد المحاولة عند انتهاء أحد الاجتماعات.'],

@@ -166,7 +166,6 @@ function translatePage() {
       confidentialite: `<a href="/confidentialite?lang=${l.code}" target="_blank" rel="noopener">${esc(t('politique_confidentialite_min'))}</a>`,
     });
   });
-  showHostingText();
   showFreePeriod();
   $$('.choix-langue').forEach((sel) => {
     sel.innerHTML = window.NADWA_LANGUES.map((x) => `<option value="${x.code}" lang="${x.code}">${x.nom}</option>`).join('');
@@ -183,12 +182,7 @@ function showFreePeriod() {
   const texte = t('gratuit_jusqu_au', { date: new Intl.DateTimeFormat(langue().locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(publicInfo.gratuit_jusqu_au)) });
   $$('[data-gratuit]').forEach((el) => { el.textContent = texte; el.hidden = false; });
 }
-/** Case « J'accepte l'hébergement de mes données… » : texte selon le lieu d'hébergement actuel. */
-function showHostingText() {
-  const cle = publicInfo?.hebergement_algerie ? 'accepte_hebergement_algerie' : 'accepte_hebergement_pilote';
-  $$('[data-texte-hebergement]').forEach((el) => { el.textContent = t(cle); });
-}
-fetch('/api/infos').then((r) => r.json()).then((info) => { publicInfo = info; showHostingText(); showFreePeriod(); }).catch(() => {});
+fetch('/api/infos').then((r) => r.json()).then((info) => { publicInfo = info; showFreePeriod(); }).catch(() => {});
 
 /** Nouvelle version des Conditions : à accepter avant de continuer (sinon déconnexion). */
 async function checkTerms() {
@@ -199,7 +193,7 @@ async function checkTerms() {
   const dlg = $('#dlg-conditions');
   dlg.addEventListener('cancel', (e) => e.preventDefault(), { once: true }); // pas de fermeture avec Échap
   openDialog('dlg-conditions', async () => {
-    await api('/auth/conditions', { method: 'POST', body: { accepte_conditions: true, accepte_hebergement: true } });
+    await api('/auth/conditions', { method: 'POST', body: { accepte_conditions: true } });
   });
 }
 $('#conditions-refuser').addEventListener('click', async () => {
@@ -289,7 +283,6 @@ function setAuthMode(mode) {
   $$('[data-inscription]').forEach((el) => { el.hidden = !signup; });
   f.nom.required = signup;
   f.accepte_conditions.required = signup;
-  f.accepte_hebergement.required = signup;
   f.mot_de_passe.autocomplete = signup ? 'new-password' : 'current-password';
   $('#auth-titre').textContent = t(signup ? 'titre_inscription' : 'titre_connexion');
   $('#auth-sous-titre').textContent = t(signup ? 'sous_titre_inscription' : 'sous_titre_connexion');
@@ -310,7 +303,7 @@ $('#form-auth').addEventListener('submit', async (e) => {
   $('#auth-erreur').textContent = '';
   try {
     const body = { email: f.email.value, mot_de_passe: f.mot_de_passe.value };
-    if (state.authMode === 'inscription') { body.nom = f.nom.value; body.accepte_conditions = f.accepte_conditions.checked; body.accepte_hebergement = f.accepte_hebergement.checked; }
+    if (state.authMode === 'inscription') { body.nom = f.nom.value; body.accepte_conditions = f.accepte_conditions.checked; }
     const result = await api(state.authMode === 'inscription' ? '/auth/inscription' : '/auth/connexion', { method: 'POST', body });
     if (result.verification) { f.reset(); showVerifyPending(result.email); return; }
     f.reset();
