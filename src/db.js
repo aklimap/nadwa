@@ -190,6 +190,23 @@ if (!colonnes('seances').includes('organisateur_id')) {
   db.exec('ALTER TABLE seances ADD COLUMN organisateur_id INTEGER REFERENCES utilisateurs(id) ON DELETE SET NULL');
 }
 
+// Notifications : réglages (clés VAPID), abonnements push, préférences, rappels de réunion.
+db.exec(`
+CREATE TABLE IF NOT EXISTS reglages (cle TEXT PRIMARY KEY, valeur TEXT);
+CREATE TABLE IF NOT EXISTS push_abonnements (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  utilisateur_id  INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  endpoint        TEXT NOT NULL UNIQUE,
+  p256dh          TEXT NOT NULL,
+  auth            TEXT NOT NULL,
+  cree_le         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_push_utilisateur ON push_abonnements(utilisateur_id);
+`);
+if (!colonnes('utilisateurs').includes('notif_email')) db.exec('ALTER TABLE utilisateurs ADD COLUMN notif_email INTEGER NOT NULL DEFAULT 1');
+if (!colonnes('utilisateurs').includes('notif_push')) db.exec('ALTER TABLE utilisateurs ADD COLUMN notif_push INTEGER NOT NULL DEFAULT 1');
+if (!colonnes('seances').includes('rappel_envoye')) db.exec('ALTER TABLE seances ADD COLUMN rappel_envoye INTEGER NOT NULL DEFAULT 0');
+
 // Clavardage d'équipe : une conversation de groupe rattachée à chaque équipe.
 if (!colonnes('conversations').includes('classe_id')) {
   db.exec('ALTER TABLE conversations ADD COLUMN classe_id INTEGER REFERENCES classes(id) ON DELETE CASCADE');

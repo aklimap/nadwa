@@ -52,7 +52,9 @@ function ajouterMessage(conversationId, auteurId, contenu, type = 'texte', fichi
     .run(conversationId, auteurId, type, contenu, fichierId);
   db.prepare("UPDATE conversations SET maj_le = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?").run(conversationId);
   db.prepare('UPDATE conversation_membres SET lu_jusqua = ? WHERE conversation_id = ? AND utilisateur_id = ?').run(lastInsertRowid, conversationId, auteurId);
-  return db.prepare(`${SQL_DM} WHERE d.id = ?`).get(lastInsertRowid);
+  const message = db.prepare(`${SQL_DM} WHERE d.id = ?`).get(lastInsertRowid);
+  require('../notifications').messageDirect(message); // e-mail et notification push aux autres membres
+  return message;
 }
 
 // Personnes avec qui l'on peut discuter.

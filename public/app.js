@@ -38,6 +38,8 @@ const ICONES = {
   telecharger: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
   trombone: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 11-8.5 8.5a5 5 0 0 1-7-7L14 4a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4L15.5 7"/></svg>',
   dossier: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+  cloche: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>',
+  mail: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></svg>',
   options: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>',
   poubelle: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>',
   code: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1"/><path d="M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1"/></svg>',
@@ -326,8 +328,100 @@ async function start({ utilisateur, espaces }) {
   const last = lastOrg.get();
   const org = state.orgs.find((o) => o.id === last) || state.orgs.find((o) => !o.personnel && o.role === 'admin')
     || state.orgs.find((o) => !o.personnel) || state.orgs[0];
+  const lien = new URLSearchParams(location.search).toString() ? location.href : null;
   await openOrg(org.id);
   loadConversations();
+  initNotifications();
+  if (lien) openFromLink(lien);
+}
+
+// ---------- Liens des notifications ----------
+// /?conv=ID (conversation), /?equipe=ID[&onglet=clavardage][&canal=ID][&reunion=ID]
+async function openFromLink(url) {
+  const p = new URL(url, location.origin).searchParams;
+  const conv = Number(p.get('conv')) || null;
+  const equipe = Number(p.get('equipe')) || null;
+  if (!conv && !equipe) return;
+  history.replaceState(null, '', '/');
+  try {
+    if (conv) {
+      await loadConversations();
+      showView('conversation', { convId: conv });
+      return;
+    }
+    const d = await api(`/classes/${equipe}`);
+    if (p.get('onglet') === 'clavardage') state.ongletSuivant = 'clavardage';
+    if (p.get('canal')) state.canalSuivant = Number(p.get('canal'));
+    if (state.org?.id !== d.classe.espace_id) await openOrg(d.classe.espace_id, { teamId: equipe });
+    else showView('classes', { teamId: equipe });
+    const reunion = Number(p.get('reunion')) || null;
+    if (reunion) showPrejoin(reunion);
+  } catch (err) { toast(err.message); }
+}
+navigator.serviceWorker?.addEventListener('message', (e) => {
+  if (e.data?.type === 'nadwa:ouvrir' && state.me) openFromLink(e.data.url);
+});
+
+// ---------- Notifications (téléphone, ordinateur, e-mail) ----------
+const notif = { email: true, push: true, cle: null, appareil: false };
+const pushPossible = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const swPret = 'serviceWorker' in navigator ? navigator.serviceWorker.register('/sw.js').catch(() => null) : Promise.resolve(null);
+
+async function abonnementActuel() {
+  const reg = await swPret;
+  return reg ? reg.pushManager.getSubscription() : null;
+}
+
+async function initNotifications() {
+  try { Object.assign(notif, await api('/notifications')); } catch { return; }
+  if (!pushPossible()) return;
+  const sub = await abonnementActuel().catch(() => null);
+  notif.appareil = Boolean(sub) && Notification.permission === 'granted';
+  if (sub && notif.appareil) api('/notifications/abonnement', { method: 'POST', body: sub.toJSON() }).catch(() => {});
+  // Première fois : proposer d'activer les notifications sur cet appareil.
+  let deja = false;
+  try { deja = localStorage.getItem('nadwa:notif-propose') === '1'; localStorage.setItem('nadwa:notif-propose', '1'); } catch { /* stockage indisponible */ }
+  if (!deja && Notification.permission === 'default') {
+    setTimeout(() => toast(t('notif_proposer'), { label: t('activer'), run: enableDeviceNotifications }), 2500);
+  }
+}
+
+const base64EnOctets = (b64) => {
+  const s = atob((b64 + '='.repeat((4 - (b64.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(s, (c) => c.charCodeAt(0));
+};
+
+async function enableDeviceNotifications() {
+  if (!pushPossible()) { toast(t('notif_non_supporte')); return; }
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') { toast(t('notif_refuse')); return; }
+  try {
+    const reg = await swPret;
+    const sub = (await reg.pushManager.getSubscription())
+      || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64EnOctets(notif.cle) });
+    await api('/notifications/abonnement', { method: 'POST', body: sub.toJSON() });
+    if (!notif.push) Object.assign(notif, await api('/notifications', { method: 'PATCH', body: { push: true } }));
+    notif.appareil = true;
+    await api('/notifications/essai', { method: 'POST' });
+    toast(t('notif_activees'));
+  } catch (err) { toast(err.message || t('notif_non_supporte')); }
+}
+
+async function disableDeviceNotifications() {
+  const sub = await abonnementActuel().catch(() => null);
+  if (sub) {
+    await api('/notifications/abonnement', { method: 'DELETE', body: { endpoint: sub.endpoint } }).catch(() => {});
+    await sub.unsubscribe().catch(() => {});
+  }
+  notif.appareil = false;
+  toast(t('notif_desactivees'));
+}
+
+async function toggleEmailNotifications() {
+  try {
+    Object.assign(notif, await api('/notifications', { method: 'PATCH', body: { email: !notif.email } }));
+    toast(t(notif.email ? 'notif_email_on' : 'notif_email_off'));
+  } catch (err) { toast(err.message); }
 }
 
 async function reloadOrgs() { state.orgs = await api('/espaces'); }
@@ -474,6 +568,10 @@ function buildMeMenu(menu) {
     ${[['auto', 'disponible'], ['absent', 'absent'], ['non_disponible', 'non_disponible']].map(([choix, s]) => `
       <button type="button" data-statut-choix="${choix}" class="${state.presenceChoix === choix ? 'actif' : ''}"><span class="presence-pastille" data-statut="${s}"></span><span>${t(`statut_${s}`)}</span></button>`).join('')}
     <hr>
+    <div class="menu-section">${t('notifications')}</div>
+    <button type="button" data-action="notif-appareil">${ICONES.cloche}<span>${t('notif_cet_appareil')}</span><span class="menu-etat ${notif.appareil ? 'on' : ''}">${t(notif.appareil ? 'active' : 'inactive')}</span></button>
+    <button type="button" data-action="notif-email">${ICONES.mail}<span>${t('notif_par_email')}</span><span class="menu-etat ${notif.email ? 'on' : ''}">${t(notif.email ? 'active' : 'inactive')}</span></button>
+    <hr>
     <button type="button" data-action="profil">${ICONES.profil}<span>${t('mon_profil')}</span></button>
     <div class="menu-langue"><span>${t('langue')}</span><select class="choix-langue" aria-label="${esc(t('langue'))}"></select></div>
     <hr>
@@ -499,6 +597,8 @@ function bindMenuActions(menu) {
     menu.hidden = true;
     const a = b.dataset.action;
     if (a === 'profil') openProfile();
+    if (a === 'notif-appareil') (notif.appareil ? disableDeviceNotifications : enableDeviceNotifications)();
+    if (a === 'notif-email') toggleEmailNotifications();
     if (a === 'creer-org') openDialog('dlg-creer-espace', createOrg);
     if (a === 'code') openDialog('dlg-code', joinWithCode);
     if (a === 'gerer') showView('gestion');
@@ -605,6 +705,8 @@ async function openTeam(id, { keep = false } = {}) {
     state.detail = detail; state.meetings = meetings; state.channels = channels;
     if (!teamChat(id)) loadConversations().then(() => { if (state.teamId === id) renderTeamList(); });
     if (!sameTeam || !keep || !channels.some((c) => c.id === state.channelId)) state.channelId = channels[0]?.id ?? null;
+    if (state.canalSuivant && channels.some((c) => c.id === state.canalSuivant)) state.channelId = state.canalSuivant;
+    state.canalSuivant = null;
     renderTeamList();
     renderTeam();
     if (matchMedia('(min-width: 861px)').matches) document.body.classList.add('detail-ouvert');

@@ -98,7 +98,9 @@ routeur.post('/canaux/:id/fichiers', brut, (req, res) => {
     const contenu = String(decodeURIComponent(req.get('x-commentaire') || '')).trim().slice(0, 4000);
     const { lastInsertRowid } = db.prepare('INSERT INTO messages (classe_id, canal_id, utilisateur_id, contenu, fichier_id) VALUES (?, ?, ?, ?, ?)')
       .run(classe.id, canal.id, req.utilisateur.id, contenu, r.fichier.id);
-    req.app.get('io')?.to(`classe:${classe.id}`).emit('message:nouveau', db.prepare(`${SQL_MESSAGE} WHERE m.id = ?`).get(lastInsertRowid));
+    const message = db.prepare(`${SQL_MESSAGE} WHERE m.id = ?`).get(lastInsertRowid);
+    req.app.get('io')?.to(`classe:${classe.id}`).emit('message:nouveau', message);
+    require('../notifications').publication(message);
   }
   req.app.get('io')?.to(`classe:${classe.id}`).emit('fichiers:maj', { canal_id: canal.id });
   res.status(201).json(r.fichier);

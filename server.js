@@ -50,6 +50,7 @@ app.use('/api/agenda', require('./src/routes/agenda'));
 app.use('/api/plateforme', require('./src/routes/plateforme'));
 app.use('/api/invite', require('./src/routes/invite'));
 app.use('/api/conversations', require('./src/routes/conversations'));
+app.use('/api/notifications', require('./src/routes/notifications'));
 app.use('/api', require('./src/routes/fichiers'));
 app.use('/api', (req, res) => res.status(404).json({ erreur: t(req, 'route_inconnue') }));
 
@@ -59,6 +60,17 @@ const pageAccueil = fs.readFileSync(path.join(__dirname, 'public', 'index.html')
   .replace(/(href|src)="\/(style\.css|i18n\.js|app\.js)"/g, `$1="/$2?v=${version}"`);
 const envoyerAccueil = (req, res) => res.set('Cache-Control', 'no-cache').type('html').send(pageAccueil);
 app.get(['/', '/index.html'], envoyerAccueil);
+// Service worker (notifications) : toujours la dernière version.
+app.get('/sw.js', (req, res) => res.set('Cache-Control', 'no-cache').sendFile(path.join(__dirname, 'public', 'sw.js')));
+// Appli Android (Play Store) : lien de confiance entre l'appli et le site.
+// ANDROID_SHA256 = empreinte(s) SHA-256 du certificat de signature, séparées par des virgules.
+app.get('/.well-known/assetlinks.json', (req, res) => {
+  const empreintes = String(process.env.ANDROID_SHA256 || '').split(',').map((s) => s.trim()).filter(Boolean);
+  res.json(empreintes.length ? [{
+    relation: ['delegate_permission/common.handle_all_urls'],
+    target: { namespace: 'android_app', package_name: process.env.ANDROID_PACKAGE || 'com.nadwalive.app', sha256_cert_fingerprints: empreintes },
+  }] : []);
+});
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 app.get('*', envoyerAccueil);
 
@@ -76,6 +88,8 @@ const serveur = http.createServer(app);
 const io = new Server(serveur);
 app.set('io', io);
 brancherTempsReel(io);
+
+require('./src/notifications').demarrerRappels(); // rappels de réunion 30 min avant
 
 serveur.listen(config.port, () => {
   console.log(`Nadwa is running: http://localhost:${config.port}  (video: ${visio.fournisseur()})`);

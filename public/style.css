@@ -561,3 +561,7 @@ fieldset.participants legend { padding: 0; margin-bottom: 4px; font-weight: 600;
 .clavardage .fil { flex: 1; min-height: 0; overflow-y: auto; }
 [role="tab"] .non-lu-point { margin-inline-start: 6px; vertical-align: middle; }
 .bulle-auteur { font-size: 12px; font-weight: 600; color: var(--encre-2); margin: 0 0 2px 2px; }
+
+/* ---------- Réglages des notifications (menu du compte) ---------- */
+.menu-etat { margin-inline-start: auto; font-size: 12px; font-weight: 600; color: var(--encre-2); padding: 2px 8px; border-radius: 10px; background: var(--surface-2, #EEF0F5); }
+.menu-etat.on { color: #067647; background: #DCFAE6; }
