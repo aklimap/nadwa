@@ -79,6 +79,7 @@ function classePourUtilisateur(classe, utilisateur) {
 const OUVERTURE_AVANT_MIN = 10;
 
 function etatSeance(seance, maintenant = Date.now()) {
+  if (seance.terminee_le) return 'terminee'; // terminée par l'organisateur
   const debut = Date.parse(seance.debut);
   const fin = debut + seance.duree_min * 60_000;
   if (maintenant < debut - OUVERTURE_AVANT_MIN * 60_000) return 'a_venir';

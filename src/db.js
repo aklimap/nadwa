@@ -190,4 +190,7 @@ if (!colonnes('seances').includes('organisateur_id')) {
   db.exec('ALTER TABLE seances ADD COLUMN organisateur_id INTEGER REFERENCES utilisateurs(id) ON DELETE SET NULL');
 }
 
+// Fin anticipée d'une réunion par son organisateur.
+if (!colonnes('seances').includes('terminee_le')) db.exec('ALTER TABLE seances ADD COLUMN terminee_le TEXT');
+
 module.exports = db;

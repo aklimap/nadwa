@@ -600,6 +600,7 @@ function renderLiveBanner() {
     <div class="en-cours">
       <span class="en-cours-icone">${ICONES.video}</span>
       <div class="en-cours-texte"><strong>${esc(t('reunion_en_cours', { titre: m.titre }))}</strong><span>${esc(t('jusqua', { heure: fmt.time.format(meetingEnd(m)) }))}</span></div>
+      ${canHost(m) ? `<button class="btn btn-contour" data-terminer-seance="${m.id}">${t('terminer_reunion')}</button>` : ''}
       <button class="btn btn-soleil" data-avant="${m.id}">${t('rejoindre_reunion')}</button>
     </div>` : '';
 }
@@ -1273,7 +1274,7 @@ $$('[data-fermer]').forEach((b) => b.addEventListener('click', () => b.closest('
 
 // Actions partagées (délégation)
 document.addEventListener('click', (e) => {
-  const el = e.target.closest('[data-copier], [data-copier-lien], [data-retirer], [data-ecrire], [data-avant], [data-reunion], [data-ouvrir-code], [data-rejoindre-appel], [data-supprimer-seance]');
+  const el = e.target.closest('[data-copier], [data-copier-lien], [data-retirer], [data-ecrire], [data-avant], [data-reunion], [data-ouvrir-code], [data-rejoindre-appel], [data-supprimer-seance], [data-terminer-seance]');
   if (!el) return;
   if (el.dataset.copier) copy(el.dataset.copier, 'code_copie');
   else if (el.dataset.copierLien) copy(inviteLink(el.dataset.copierLien), 'lien_copie');
@@ -1283,6 +1284,7 @@ document.addEventListener('click', (e) => {
   else if (el.dataset.reunion) openMeetingDetail(Number(el.dataset.reunion));
   else if (el.dataset.rejoindreAppel) joinCall(Number(el.dataset.rejoindreAppel));
   else if (el.dataset.supprimerSeance) deleteMeeting(Number(el.dataset.supprimerSeance));
+  else if (el.dataset.terminerSeance) endMeeting(Number(el.dataset.terminerSeance));
   else if ('ouvrirCode' in el.dataset) openDialog('dlg-code', joinWithCode);
 });
 
@@ -1293,6 +1295,17 @@ async function removeMember(userId) {
     state.detail = await api(`/classes/${state.teamId}`);
     renderTeam();
     toast(t('retire_equipe'));
+  } catch (err) { toast(err.message); }
+}
+
+async function endMeeting(id) {
+  if (!confirm(t('confirmer_fin_reunion'))) return;
+  try {
+    await api(`/seances/${id}/terminer`, { method: 'POST' });
+    if ($('#dlg-reunion').open) $('#dlg-reunion').close();
+    toast(t('reunion_terminee_ok'));
+    loadMeetings();
+    if (state.view === 'agenda') loadCalendar();
   } catch (err) { toast(err.message); }
 }
 
@@ -1479,6 +1492,7 @@ function openMeetingDetail(id) {
     <section class="bloc" id="reunion-lien" hidden></section>
     <div class="dlg-actions">
       ${host ? `<button class="btn-discret" data-supprimer-seance="${m.id}">${t('supprimer')}</button>` : ''}
+      ${host && m.etat === 'en_direct' ? `<button class="btn btn-contour" data-terminer-seance="${m.id}">${t('terminer_reunion')}</button>` : ''}
       ${m.acces_equipe === 0 ? '' : `<button class="btn btn-contour" id="reunion-equipe">${t('ouvrir_equipe')}</button>`}
       ${canJoin ? `<button class="btn ${m.etat === 'en_direct' ? 'btn-soleil' : 'btn-accent'}" data-avant="${m.id}">${t(m.etat === 'en_direct' ? 'rejoindre_reunion' : 'demarrer')}</button>` : ''}
     </div>
