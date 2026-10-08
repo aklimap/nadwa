@@ -82,6 +82,19 @@ function jetonJitsi(salle, utilisateur) {
   );
 }
 
+/**
+ * Grand cours : l'équipe (propriétaire + membres + invités) compte au moins GRAND_COURS_MIN personnes.
+ * La vidéo y est limitée à 360p : beaucoup moins de débit pour le serveur et les élèves.
+ */
+const GRAND_COURS_MIN = Number(process.env.GRAND_COURS_MIN) || 15;
+function grandCours(seance, classe) {
+  if (!classe?.id) return false;
+  const db = require('./db');
+  const membres = db.prepare('SELECT COUNT(*) AS n FROM membres WHERE classe_id = ?').get(classe.id).n;
+  const invites = seance.id ? db.prepare('SELECT COUNT(*) AS n FROM seance_invites WHERE seance_id = ?').get(seance.id).n : 0;
+  return membres + invites + 1 >= GRAND_COURS_MIN;
+}
+
 // ---------- Point d'entrée ----------
 
 /**
@@ -109,7 +122,7 @@ async function lienVisio({ seance, classe, utilisateur, moderateur, langue = 'en
   return {
     fournisseur: 'jitsi',
     // Pour afficher la visio dans la page Nadwa (API IFrame de Jitsi), comme Teams.
-    integration: { domaine: config.jitsiDomaine, salle: seance.reunion_id, jwt: jeton, nom: utilisateur.nom, micro, camera },
+    integration: { domaine: config.jitsiDomaine, salle: seance.reunion_id, jwt: jeton, nom: utilisateur.nom, micro, camera, grand: grandCours(seance, classe) },
     // Choix faits avant d'entrer : micro et caméra activés ou coupés au démarrage.
     url: `https://${config.jitsiDomaine}/${salle}${requete}#userInfo.displayName=${nom}&config.startWithAudioMuted=${!micro}&config.startWithVideoMuted=${!camera}&config.prejoinConfig.enabled=false`,
   };

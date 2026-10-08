@@ -1246,6 +1246,8 @@ async function openVisio(reponse, { titre = '', etat = null, seanceId = null, re
       prejoinConfig: { enabled: false },
       disableDeepLinking: true,
       enableClosePage: false,
+      // Grand cours : vidéo limitée à 360p (débit divisé par 2 à 3 pour le serveur et les élèves).
+      ...(v.grand ? { resolution: 360, constraints: { video: { height: { ideal: 360, max: 360, min: 180 } } } } : {}),
     },
   });
   Object.assign(visio, { api, etat, seanceId, ref, debut: Date.now(), timer: etat ? setInterval(checkVisio, 10_000) : null });

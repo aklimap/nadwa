@@ -1,6 +1,6 @@
 {
   "name": "nadwa",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Nadwa — espaces de travail en ligne : cours, réunions et visio pour toute organisation",
   "private": true,
   "main": "server.js",
