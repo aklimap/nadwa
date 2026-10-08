@@ -174,13 +174,12 @@ function translatePage() {
   buildFormats();
 }
 
-/** « Gratuit pendant 12 mois » sur la page d'accueil (date de fin si le lancement est fixé). */
+/** « Gratuit jusqu'au … » : page d'accueil et application, une fois la date de lancement fixée. */
 let publicInfo = null;
 function showFreePeriod() {
-  if (!publicInfo) return;
-  const texte = publicInfo.gratuit_jusqu_au
-    ? t('gratuit_jusqu_au', { date: new Intl.DateTimeFormat(langue().locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(publicInfo.gratuit_jusqu_au)) })
-    : t('gratuit_mois', { n: publicInfo.mois_gratuits });
+  // Affichée seulement après le lancement officiel (DATE_LANCEMENT réglée dans Render).
+  if (!publicInfo?.gratuit_jusqu_au) return;
+  const texte = t('gratuit_jusqu_au', { date: new Intl.DateTimeFormat(langue().locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(publicInfo.gratuit_jusqu_au)) });
   $$('[data-gratuit]').forEach((el) => { el.textContent = texte; el.hidden = false; });
 }
 fetch('/api/infos').then((r) => r.json()).then((info) => { publicInfo = info; showFreePeriod(); }).catch(() => {});
