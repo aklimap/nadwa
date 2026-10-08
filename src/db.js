@@ -207,6 +207,19 @@ if (!colonnes('utilisateurs').includes('notif_email')) db.exec('ALTER TABLE util
 if (!colonnes('utilisateurs').includes('notif_push')) db.exec('ALTER TABLE utilisateurs ADD COLUMN notif_push INTEGER NOT NULL DEFAULT 1');
 if (!colonnes('seances').includes('rappel_envoye')) db.exec('ALTER TABLE seances ADD COLUMN rappel_envoye INTEGER NOT NULL DEFAULT 0');
 
+// Vérification de l'adresse e-mail à l'inscription (les comptes existants sont considérés vérifiés).
+if (!colonnes('utilisateurs').includes('email_verifie')) db.exec('ALTER TABLE utilisateurs ADD COLUMN email_verifie INTEGER NOT NULL DEFAULT 1');
+db.exec(`
+CREATE TABLE IF NOT EXISTS verifications_email (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  utilisateur_id  INTEGER NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+  jeton_hash      TEXT NOT NULL UNIQUE,
+  expire_le       TEXT NOT NULL,
+  utilise         INTEGER NOT NULL DEFAULT 0,
+  cree_le         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+`);
+
 // Soutien technique, évaluation des réunions et suivi de la capacité (exploitant).
 db.exec(`
 CREATE TABLE IF NOT EXISTS retours (

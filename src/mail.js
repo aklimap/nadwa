@@ -97,6 +97,17 @@ function ajoutOrganisation({ email, nom, langue, url, organisation, par }) {
   });
 }
 
+function verification({ email, nom, langue, lien }) {
+  return envoyer({
+    a: email, langue,
+    sujet: t(langue, 'mail_verif_sujet'),
+    titre: t(langue, 'mail_bienvenue_titre', { prenom: prenom(nom) }),
+    paragraphes: [t(langue, 'mail_verif_texte'), t(langue, 'mail_verif_duree')],
+    bouton: t(langue, 'mail_verif_bouton'), lien,
+    pied: t(langue, 'mail_pas_vous'),
+  });
+}
+
 function reinitialisation({ email, nom, langue, lien }) {
   return envoyer({
     a: email, langue,
@@ -118,4 +129,4 @@ function motDePasseChange({ email, nom, langue }) {
   });
 }
 
-module.exports = { actif, envoyer, bienvenue, compteCree, ajoutOrganisation, reinitialisation, motDePasseChange };
+module.exports = { actif, envoyer, bienvenue, verification, compteCree, ajoutOrganisation, reinitialisation, motDePasseChange };

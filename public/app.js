@@ -202,6 +202,7 @@ async function api(path, { method = 'GET', body } = {}) {
   if (!res.ok) {
     const err = new Error(data?.erreur || t('erreur_n', { n: res.status }));
     err.status = res.status;
+    err.code = data?.code;
     throw err;
   }
   return data;
@@ -267,10 +268,12 @@ $('#form-auth').addEventListener('submit', async (e) => {
     const body = { email: f.email.value, mot_de_passe: f.mot_de_passe.value };
     if (state.authMode === 'inscription') body.nom = f.nom.value;
     const result = await api(state.authMode === 'inscription' ? '/auth/inscription' : '/auth/connexion', { method: 'POST', body });
+    if (result.verification) { f.reset(); showVerifyPending(result.email); return; }
     f.reset();
     start(result);
   } catch (err) {
     $('#auth-erreur').textContent = err.message;
+    if (err.code === 'email_non_verifie') showVerifyPending(f.email.value, true);
   } finally {
     button.disabled = false;
   }
@@ -292,6 +295,55 @@ $('#btn-oubli').addEventListener('click', () => {
     throw Object.assign(new Error(''), { garder: true }); // le dialogue reste ouvert pour afficher la confirmation
   }, (form) => { form.email.value = $('#form-auth').email.value; });
 });
+
+// ---------- Vérification de l'adresse e-mail ----------
+function showVerifyPending(email, depuisConnexion = false) {
+  const zone = $('#auth-verifier');
+  zone.hidden = false;
+  $('#form-auth').hidden = true;
+  $('.auth-bascule').hidden = true;
+  $('#auth-titre').textContent = t('verif_titre');
+  $('#auth-sous-titre').textContent = '';
+  zone.innerHTML = `
+    <div class="verif-icone">${ICONES.mail}</div>
+    <p>${depuisConnexion ? t('verif_connexion') : t('verif_texte')}</p>
+    <p class="verif-email" dir="ltr"></p>
+    <p class="note">${t('verif_spam')}</p>
+    <button type="button" class="btn btn-contour" id="verif-renvoyer">${t('verif_renvoyer')}</button>
+    <button type="button" class="btn-lien" id="verif-retour">${t('verif_retour')}</button>`;
+  $('.verif-email', zone).textContent = email;
+  $('#verif-renvoyer').addEventListener('click', async (e) => {
+    e.currentTarget.disabled = true;
+    try { await api('/auth/renvoyer-verification', { method: 'POST', body: { email } }); toast(t('verif_renvoye')); }
+    catch (err) { toast(err.message); }
+    finally { setTimeout(() => { const b = $('#verif-renvoyer'); if (b) b.disabled = false; }, 30_000); }
+  });
+  $('#verif-retour').addEventListener('click', hideVerifyPending);
+}
+function hideVerifyPending() {
+  $('#auth-verifier').hidden = true;
+  $('#form-auth').hidden = false;
+  $('.auth-bascule').hidden = false;
+  setAuthMode('connexion');
+}
+
+/** Lien de confirmation reçu par e-mail : /verifier/<jeton>. */
+const verifyTokenInUrl = () => (location.pathname.match(/^\/verifier\/([\w-]{20,})/) || [])[1] || null;
+async function confirmEmail(jeton) {
+  history.replaceState(null, '', '/');
+  try {
+    const result = await api('/auth/verifier', { method: 'POST', body: { jeton } });
+    start(result);
+    setTimeout(() => toast(t('verif_ok')), 800);
+  } catch (err) {
+    // Lien déjà utilisé alors que la personne est connectée : on ouvre simplement Nadwa.
+    const deja = await api('/auth/moi').catch(() => null);
+    if (deja) { start(deja); return; }
+    showScreen('ecran-auth');
+    setAuthMode('connexion');
+    $('#auth-erreur').textContent = err.message;
+  }
+}
 
 /** Lien reçu par e-mail : /reinitialiser/<jeton> (ou #/reinitialiser/<jeton>). */
 const resetTokenInUrl = () => (location.pathname.match(/^\/reinitialiser\/([\w-]{20,})/) || location.hash.match(/^#\/reinitialiser\/([\w-]{20,})/) || [])[1] || null;
@@ -2050,6 +2102,8 @@ function launch() {
   if (jeton) return showGuest(jeton);
   const reset = resetTokenInUrl();
   if (reset) return showReset(reset);
+  const verif = verifyTokenInUrl();
+  if (verif) return confirmEmail(verif);
   api('/auth/moi')
     .then(start)
     .catch(() => { showScreen('ecran-auth'); setAuthMode('connexion'); });

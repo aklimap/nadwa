@@ -586,3 +586,9 @@ fieldset.participants legend { padding: 0; margin-bottom: 4px; font-weight: 600;
 .texte-long { max-width: 420px; white-space: pre-wrap; }
 .graphe-capacite rect, .graphe-capacite text { stroke: none; }
 .graphe-capacite line { fill: none; }
+
+/* ---------- Vérification de l'adresse e-mail ---------- */
+.auth-verifier { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.auth-verifier p { margin: 0; }
+.verif-icone svg { width: 40px; height: 40px; color: var(--accent); }
+.verif-email { font-weight: 700; font-size: 16px; word-break: break-all; }
