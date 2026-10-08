@@ -131,6 +131,8 @@ function pickFiles(url, after) {
   input.click();
 }
 
+// Terminer une réunion : son organisateur seulement (le propriétaire de l'équipe, sans organisateur connu).
+const canEnd = (m) => (m.organisateur_id ? m.organisateur_id === state.me.id : canHost(m));
 const canHost = (m) => m.organisateur_id === state.me.id || m.responsable_id === state.me.id || state.org?.role === 'admin';
 
 function translatePage() {
@@ -600,7 +602,7 @@ function renderLiveBanner() {
     <div class="en-cours">
       <span class="en-cours-icone">${ICONES.video}</span>
       <div class="en-cours-texte"><strong>${esc(t('reunion_en_cours', { titre: m.titre }))}</strong><span>${esc(t('jusqua', { heure: fmt.time.format(meetingEnd(m)) }))}</span></div>
-      ${canHost(m) ? `<button class="btn btn-contour" data-terminer-seance="${m.id}">${t('terminer_reunion')}</button>` : ''}
+      ${canEnd(m) ? `<button class="btn btn-contour" data-terminer-seance="${m.id}">${t('terminer_reunion')}</button>` : ''}
       <button class="btn btn-soleil" data-avant="${m.id}">${t('rejoindre_reunion')}</button>
     </div>` : '';
 }
@@ -1492,7 +1494,7 @@ function openMeetingDetail(id) {
     <section class="bloc" id="reunion-lien" hidden></section>
     <div class="dlg-actions">
       ${host ? `<button class="btn-discret" data-supprimer-seance="${m.id}">${t('supprimer')}</button>` : ''}
-      ${host && m.etat === 'en_direct' ? `<button class="btn btn-contour" data-terminer-seance="${m.id}">${t('terminer_reunion')}</button>` : ''}
+      ${canEnd(m) && m.etat === 'en_direct' ? `<button class="btn btn-contour" data-terminer-seance="${m.id}">${t('terminer_reunion')}</button>` : ''}
       ${m.acces_equipe === 0 ? '' : `<button class="btn btn-contour" id="reunion-equipe">${t('ouvrir_equipe')}</button>`}
       ${canJoin ? `<button class="btn ${m.etat === 'en_direct' ? 'btn-soleil' : 'btn-accent'}" data-avant="${m.id}">${t(m.etat === 'en_direct' ? 'rejoindre_reunion' : 'demarrer')}</button>` : ''}
     </div>

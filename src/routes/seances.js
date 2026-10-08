@@ -80,13 +80,15 @@ routeur.delete('/:id/participants/:uid', (req, res) => {
   res.json({ invites: invitesDe(seance.id) });
 });
 
-// Terminer la réunion maintenant (organisateur ou propriétaire de l'équipe) : elle disparaît
-// des réunions en cours, mais reste dans l'agenda.
+// Terminer la réunion maintenant : réservé à son organisateur (le propriétaire de l'équipe
+// n'y assiste pas forcément). Sans organisateur connu (anciennes réunions), le propriétaire
+// de l'équipe peut la terminer. Elle disparaît des réunions en cours, mais reste dans l'agenda.
 routeur.post('/:id/terminer', (req, res) => {
   const acces = trouver(req, res);
   if (!acces) return;
   const { seance, classe } = acces;
-  if (!peutAnimer(req.utilisateur, seance, classe)) return res.status(403).json({ erreur: t(req, 'terminer_reunion_owner') });
+  const organisateur = seance.organisateur_id ? seance.organisateur_id === req.utilisateur.id : peutAnimer(req.utilisateur, seance, classe);
+  if (!organisateur) return res.status(403).json({ erreur: t(req, 'terminer_reunion_owner') });
   db.prepare('UPDATE seances SET terminee_le = ? WHERE id = ?').run(new Date().toISOString(), seance.id);
   annoncerSeances(req, classe.id, invitesDe(seance.id).map((p) => p.id));
   res.json({ ok: true });
