@@ -38,6 +38,7 @@ const ICONES = {
   telecharger: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
   trombone: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 11-8.5 8.5a5 5 0 0 1-7-7L14 4a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4L15.5 7"/></svg>',
   dossier: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+  aide: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 0 1 4.9.7c0 1.7-2.4 2.1-2.4 3.8M12 17h.01"/></svg>',
   cloche: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>',
   mail: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></svg>',
   options: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>',
@@ -581,6 +582,7 @@ function buildMeMenu(menu) {
     <button type="button" data-action="code">${ICONES.code}<span>${t('rejoindre_avec_code')}</span></button>
     ${admin ? `<button type="button" data-action="gerer">${ICONES.orga}<span>${t('gerer_org')}</span></button>` : ''}
     ${state.me.est_superadmin ? `<button type="button" data-action="plateforme">${ICONES.grille}<span>${t('plateforme')}</span></button>` : ''}
+    <button type="button" data-action="aide">${ICONES.aide}<span>${t('aide_commentaires')}</span></button>
     <hr>
     <button type="button" data-action="sortir">${ICONES.sortir}<span>${t('se_deconnecter')}</span></button>`;
   const sel = $('.choix-langue', menu);
@@ -597,6 +599,7 @@ function bindMenuActions(menu) {
     menu.hidden = true;
     const a = b.dataset.action;
     if (a === 'profil') openProfile();
+    if (a === 'aide') openHelp();
     if (a === 'notif-appareil') (notif.appareil ? disableDeviceNotifications : enableDeviceNotifications)();
     if (a === 'notif-email') toggleEmailNotifications();
     if (a === 'creer-org') openDialog('dlg-creer-espace', createOrg);
@@ -1217,7 +1220,7 @@ function chargerApiJitsi(domaine) {
  * Ouvre la visio. reponse = réponse de l'API (/rejoindre ou /appel).
  * options : titre, etat (fonction qui renvoie l'état de la réunion), seanceId (si l'on peut la terminer).
  */
-async function openVisio(reponse, { titre = '', etat = null, seanceId = null } = {}) {
+async function openVisio(reponse, { titre = '', etat = null, seanceId = null, ref = null } = {}) {
   const v = reponse.integration;
   if (window.NADWA_OUVRIR_VISIO) { window.NADWA_OUVRIR_VISIO(reponse.url); return; }
   if (!v) { // BigBlueButton : nouvel onglet
@@ -1245,8 +1248,8 @@ async function openVisio(reponse, { titre = '', etat = null, seanceId = null } =
       enableClosePage: false,
     },
   });
-  Object.assign(visio, { api, etat, seanceId, timer: etat ? setInterval(checkVisio, 10_000) : null });
-  state.socket?.emit('presence:reunion', true);
+  Object.assign(visio, { api, etat, seanceId, ref, debut: Date.now(), timer: etat ? setInterval(checkVisio, 10_000) : null });
+  state.socket?.emit('presence:reunion', v.salle);
   // Raccrocher dans la visio, ou être exclu quand l'organisateur termine : retour à Nadwa.
   api.addListener('videoConferenceLeft', () => closeVisio());
   api.addListener('readyToClose', () => closeVisio());
@@ -1255,7 +1258,8 @@ async function openVisio(reponse, { titre = '', etat = null, seanceId = null } =
 function closeVisio(rafraichir = true) {
   clearInterval(visio.timer);
   const api = visio.api;
-  Object.assign(visio, { api: null, etat: null, timer: null, seanceId: null });
+  const { ref, debut } = visio;
+  Object.assign(visio, { api: null, etat: null, timer: null, seanceId: null, ref: null, debut: null });
   if (api) { try { api.dispose(); } catch { /* déjà fermée */ } }
   $('#visio-cadre').innerHTML = '';
   $('#ecran-visio').hidden = true;
@@ -1263,7 +1267,44 @@ function closeVisio(rafraichir = true) {
   if (rafraichir && api && state.me) {
     loadMeetings();
     if (state.view === 'agenda') loadCalendar();
+    // Évaluation de la qualité, après une réunion d'au moins une minute.
+    const duree = Math.round((Date.now() - debut) / 1000);
+    if (ref && duree >= 60) setTimeout(() => openRating(ref, duree), 400);
   }
+}
+
+// ---------- Évaluation de la qualité après une réunion ----------
+function openRating(ref, duree) {
+  const dlg = $('#dlg-evaluation');
+  if (dlg.open) return;
+  let note = 0;
+  const form = $('form', dlg);
+  form.reset();
+  $('.erreur', dlg).textContent = '';
+  const etoiles = $$('[data-note]', dlg);
+  const peindre = (n) => etoiles.forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.note) <= n)));
+  peindre(0);
+  etoiles.forEach((b) => { b.onclick = () => { note = Number(b.dataset.note); peindre(note); $('#eval-details').hidden = note >= 5; }; });
+  $('#eval-details').hidden = true;
+  dlg.showModal();
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    if (!note) { $('.erreur', dlg).textContent = t('choisir_note'); return; }
+    const problemes = $$('[name=probleme]:checked', form).map((c) => c.value);
+    try {
+      await api('/aide/evaluation', { method: 'POST', body: { ...ref, note, problemes, commentaire: form.commentaire.value, duree_s: duree } });
+      dlg.close();
+      toast(t('merci_evaluation'));
+    } catch (err) { $('.erreur', dlg).textContent = err.message; }
+  };
+}
+
+// ---------- Aide et commentaires (soutien technique) ----------
+function openHelp() {
+  openDialog('dlg-aide', async (values) => {
+    await api('/aide/retour', { method: 'POST', body: { ...values, page: `${state.view}${state.teamId ? ` / équipe ${state.teamId}` : ''}` } });
+    toast(t('merci_retour'));
+  });
 }
 
 async function checkVisio() {
@@ -1303,6 +1344,7 @@ async function joinNow(form) {
       titre: info?.titre || '',
       etat: async () => (await api(mode === 'invite' ? `/invite/${jeton}` : `/seances/${id}/etat`)).etat,
       seanceId: organisateur ? id : null,
+      ref: mode === 'invite' ? null : { seance_id: id },
     });
   } catch (err) {
     $('.erreur', form).textContent = err.message;
@@ -1486,7 +1528,7 @@ function onDirectMessage(m) {
 async function startCall(convId, video, rejoindre = false) {
   try {
     const reponse = await api(`/conversations/${convId}/appel`, { method: 'POST', body: { rejoindre, camera: video, micro: true } });
-    await openVisio(reponse, { titre: t(video ? 'appel_video' : 'appel_audio') });
+    await openVisio(reponse, { titre: t(video ? 'appel_video' : 'appel_audio'), ref: { conversation_id: convId } });
   } catch (err) { toast(err.message); }
 }
 const joinCall = (convId) => startCall(convId, true, true);
@@ -1919,13 +1961,72 @@ $('#btn-ajouter-membre').addEventListener('click', () => openDialog('dlg-membre'
 // ---------- Plateforme (exploitant) ----------
 async function loadPlatform() {
   try {
-    const { stats, espaces } = await api('/plateforme');
+    const { stats, espaces, capacite, qualite, retours } = await api('/plateforme');
+    renderCapacity(capacite);
+    renderQuality(qualite);
+    renderFeedback(retours);
     $('#plateforme-stats').innerHTML = [[t('stat_orgs'), stats.espaces], [t('stat_comptes'), stats.utilisateurs], [t('stat_equipes'), stats.groupes], [t('stat_reunions'), stats.seances]]
       .map(([label, n]) => `<div class="stat"><strong>${n}</strong><span>${label}</span></div>`).join('');
     $('#plateforme-espaces').innerHTML = `<table>
       <thead><tr><th>${t('col_org')}</th><th>${t('col_personnes')}</th><th>${t('col_equipes')}</th><th>${t('col_creee')}</th></tr></thead>
       <tbody>${espaces.map((o) => `<tr><td>${esc(o.personnel ? `${o.nom} (${t('mon_espace')})` : o.nom)}</td><td>${o.nb_membres}</td><td>${o.nb_groupes}</td><td>${esc(fmt.date.format(new Date(o.cree_le)))}</td></tr>`).join('')}</tbody></table>`;
   } catch (err) { toast(err.message); }
+}
+
+function renderCapacity(c) {
+  const pct = (n) => Math.round(((n || 0) / c.seuil) * 100);
+  const picMois = c.mois.participants || 0;
+  const niveau = pct(picMois) >= 70 ? 'alerte' : pct(picMois) >= 50 ? 'attention' : 'ok';
+  const jours = [];
+  for (let i = 29; i >= 0; i -= 1) {
+    const d = new Date(Date.now() - i * 864e5).toISOString().slice(0, 10);
+    jours.push({ d, n: c.par_jour.find((x) => x.jour === d)?.participants || 0 });
+  }
+  const max = Math.max(c.seuil, ...jours.map((j) => j.n));
+  const W = 600; const H = 140; const bw = W / jours.length;
+  const y = (n) => H - (n / max) * H;
+  const barres = jours.map((j, i) => `<rect x="${i * bw + 1}" y="${y(j.n)}" width="${bw - 2}" height="${H - y(j.n)}" rx="2" class="${pct(j.n) >= 70 ? 'b-alerte' : 'b-ok'}"><title>${esc(fmt.date.format(new Date(j.d)))} : ${j.n}</title></rect>`).join('');
+  const seuil70 = y(c.seuil * 0.7);
+  $('#plateforme-capacite').innerHTML = `
+    <h2 class="sous-titre">${t('capacite')}</h2>
+    <div class="stats">
+      <div class="stat"><strong>${c.maintenant.participants}</strong><span>${t('cap_en_visio')}</span></div>
+      <div class="stat"><strong>${c.maintenant.reunions}</strong><span>${t('cap_reunions_cours')}</span></div>
+      <div class="stat"><strong>${c.semaine.participants || 0}</strong><span>${t('cap_pic_semaine')}</span></div>
+      <div class="stat"><strong>${picMois} <small>/ ${c.seuil}</small></strong><span>${t('cap_pic_mois')} · ${pct(picMois)} %</span></div>
+    </div>
+    <div class="carte-capacite ${niveau}">
+      <p><strong>${t(`cap_conseil_${niveau}`)}</strong></p>
+      <svg viewBox="0 0 ${W} ${H + 4}" class="graphe-capacite" role="img" aria-label="${esc(t('cap_graphe'))}">
+        ${barres}
+        <line x1="0" x2="${W}" y1="${seuil70}" y2="${seuil70}" class="ligne-seuil"/>
+        <text x="${W - 4}" y="${seuil70 - 4}" text-anchor="end" class="texte-seuil">70 %</text>
+      </svg>
+      <p class="note">${t('cap_note', { seuil: c.seuil })}</p>
+    </div>`;
+}
+
+function renderQuality(q) {
+  const libelle = (p) => t(`probleme_${p}`);
+  const moyenne = q.moyenne ? new Intl.NumberFormat(langue().locale, { maximumFractionDigits: 1 }).format(q.moyenne) : '—';
+  $('#plateforme-qualite').innerHTML = `
+    <h2 class="sous-titre">${t('qualite_reunions')}</h2>
+    <div class="stats">
+      <div class="stat"><strong>${moyenne} <small>/ 5</small></strong><span>${t('note_moyenne_30j')}</span></div>
+      <div class="stat"><strong>${q.n}</strong><span>${t('nb_evaluations_30j')}</span></div>
+      ${Object.entries(q.problemes).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([p, n]) => `<div class="stat"><strong>${n}</strong><span>${esc(libelle(p))}</span></div>`).join('')}
+    </div>
+    ${q.commentaires.length ? `<div class="tableau"><table><thead><tr><th>${t('note')}</th><th>${t('commentaire')}</th><th>${t('col_personne')}</th><th>${t('col_date')}</th></tr></thead><tbody>
+      ${q.commentaires.map((c) => `<tr><td>${'★'.repeat(c.note)}</td><td>${esc(c.commentaire)}${c.problemes ? `<br><small>${esc(c.problemes.split(',').map(libelle).join(', '))}</small>` : ''}</td><td>${esc(c.nom || '—')}</td><td>${esc(fmt.date.format(new Date(c.cree_le)))}</td></tr>`).join('')}
+    </tbody></table></div>` : ''}`;
+}
+
+function renderFeedback(retours) {
+  $('#plateforme-retours').innerHTML = `
+    <h2 class="sous-titre">${t('retours_utilisateurs')}</h2>
+    ${retours.length ? `<div class="tableau"><table><thead><tr><th>${t('type')}</th><th>${t('message')}</th><th>${t('col_personne')}</th><th>${t('col_date')}</th></tr></thead><tbody>
+      ${retours.map((r) => `<tr><td><span class="badge">${esc(t(`retour_${r.type}`))}</span></td><td class="texte-long">${esc(r.message)}</td><td>${esc(r.nom || '—')}<br><small dir="ltr">${esc(r.email || '')}</small></td><td>${esc(fmt.date.format(new Date(r.cree_le)))}</td></tr>`).join('')}
+    </tbody></table></div>` : `<p class="note">${t('aucun_retour')}</p>`}`;
 }
 
 // ---------- Profil ----------

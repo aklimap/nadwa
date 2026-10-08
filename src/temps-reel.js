@@ -66,11 +66,12 @@ module.exports = function brancherTempsReel(io) {
     const majSocket = (champ, valeur) => {
       const etat = presences.get(u.id)?.sockets.get(socket.id);
       if (!etat) return;
-      etat[champ] = Boolean(valeur);
+      etat[champ] = valeur;
       diffuserPresence(io, u.id);
     };
-    socket.on('presence:activite', (inactif) => majSocket('inactif', inactif));
-    socket.on('presence:reunion', (enReunion) => majSocket('reunion', enReunion));
+    socket.on('presence:activite', (inactif) => majSocket('inactif', Boolean(inactif)));
+    // En visio : identifiant de la salle (pour le suivi de capacité), ou false en sortant.
+    socket.on('presence:reunion', (salle) => majSocket('reunion', typeof salle === 'string' ? salle.slice(0, 80) : Boolean(salle)));
     socket.on('presence:choisir', (choix, ack) => {
       const repondre = typeof ack === 'function' ? ack : () => {};
       if (!STATUTS_CHOISIS.includes(choix)) return repondre({ ok: false });
@@ -134,3 +135,29 @@ module.exports = function brancherTempsReel(io) {
 
 // Statut affiché d'une personne (utilisé par les notifications).
 module.exports.statutDe = statutDe;
+
+// ---------- Suivi de la capacité (exploitant) ----------
+// Chaque minute : nombre de réunions en cours et de personnes connectées en visio (comptes Nadwa ;
+// les invités sans compte ne sont pas comptés). Gardé 180 jours.
+function mesurerCapacite() {
+  const salles = new Map();
+  for (const [id, p] of presences) {
+    for (const e of p.sockets.values()) {
+      if (!e.reunion) continue;
+      const salle = typeof e.reunion === 'string' ? e.reunion : `inconnue-${id}`;
+      if (!salles.has(salle)) salles.set(salle, new Set());
+      salles.get(salle).add(id);
+    }
+  }
+  const tailles = [...salles.values()].map((s) => s.size);
+  return { reunions: salles.size, participants: tailles.reduce((a, b) => a + b, 0), plus_grande: Math.max(0, ...tailles) };
+}
+function enregistrerMesure() {
+  const m = mesurerCapacite();
+  const minute = new Date(); minute.setSeconds(0, 0);
+  db.prepare('INSERT OR REPLACE INTO mesures_capacite (horodatage, reunions, participants, plus_grande) VALUES (?, ?, ?, ?)')
+    .run(minute.toISOString(), m.reunions, m.participants, m.plus_grande);
+  if (minute.getMinutes() === 0) db.prepare('DELETE FROM mesures_capacite WHERE horodatage < ?').run(new Date(Date.now() - 180 * 864e5).toISOString());
+}
+setInterval(() => { try { enregistrerMesure(); } catch (err) { console.error('Mesure de capacité :', err.message); } }, 60_000).unref();
+module.exports.mesurerCapacite = mesurerCapacite;

@@ -165,6 +165,10 @@
           <p data-i18n="plateforme_intro"></p>
         </div>
       </header>
+      <section id="plateforme-capacite" class="plateforme-bloc"></section>
+      <section id="plateforme-qualite" class="plateforme-bloc"></section>
+      <section id="plateforme-retours" class="plateforme-bloc"></section>
+      <h2 class="sous-titre" data-i18n="stat_orgs"></h2>
       <div class="stats" id="plateforme-stats"></div>
       <div class="tableau" id="plateforme-espaces"></div>
     </section>
@@ -387,6 +391,53 @@
       <div class="dlg-actions">
         <button type="button" class="btn btn-contour" data-fermer data-i18n="annuler"></button>
         <button type="submit" class="btn btn-accent" data-i18n="enregistrer"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-aide">
+    <form>
+      <h2 data-i18n="aide_commentaires"></h2>
+      <p class="note" data-i18n="aide_intro"></p>
+      <label><span data-i18n="type"></span>
+        <select name="type">
+          <option value="probleme" data-i18n="retour_probleme"></option>
+          <option value="suggestion" data-i18n="retour_suggestion"></option>
+          <option value="question" data-i18n="retour_question"></option>
+        </select>
+      </label>
+      <label><span data-i18n="message"></span><textarea name="message" rows="5" required minlength="5" maxlength="4000" data-i18n-placeholder="aide_placeholder"></textarea></label>
+      <p class="erreur" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-contour" data-fermer data-i18n="annuler"></button>
+        <button type="submit" class="btn btn-accent" data-i18n="envoyer"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-evaluation">
+    <form>
+      <h2 data-i18n="eval_titre"></h2>
+      <p class="note" data-i18n="eval_question"></p>
+      <div class="etoiles" role="group" data-i18n-aria="note">
+        <button type="button" data-note="1" aria-label="1">★</button><button type="button" data-note="2" aria-label="2">★</button><button type="button" data-note="3" aria-label="3">★</button><button type="button" data-note="4" aria-label="4">★</button><button type="button" data-note="5" aria-label="5">★</button>
+      </div>
+      <div id="eval-details" hidden>
+        <p class="note" data-i18n="eval_problemes"></p>
+        <div class="cases">
+          <label><input type="checkbox" name="probleme" value="son"><span data-i18n="probleme_son"></span></label>
+          <label><input type="checkbox" name="probleme" value="image"><span data-i18n="probleme_image"></span></label>
+          <label><input type="checkbox" name="probleme" value="coupures"><span data-i18n="probleme_coupures"></span></label>
+          <label><input type="checkbox" name="probleme" value="lenteur"><span data-i18n="probleme_lenteur"></span></label>
+          <label><input type="checkbox" name="probleme" value="partage"><span data-i18n="probleme_partage"></span></label>
+          <label><input type="checkbox" name="probleme" value="autre"><span data-i18n="probleme_autre"></span></label>
+        </div>
+      </div>
+      <label><span data-i18n="commentaire_facultatif"></span><textarea name="commentaire" rows="2" maxlength="1000"></textarea></label>
+      <p class="erreur" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-contour" data-fermer data-i18n="plus_tard"></button>
+        <button type="submit" class="btn btn-accent" data-i18n="envoyer"></button>
       </div>
     </form>
   </dialog>

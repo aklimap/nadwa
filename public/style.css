@@ -565,3 +565,24 @@ fieldset.participants legend { padding: 0; margin-bottom: 4px; font-weight: 600;
 /* ---------- Réglages des notifications (menu du compte) ---------- */
 .menu-etat { margin-inline-start: auto; font-size: 12px; font-weight: 600; color: var(--encre-2); padding: 2px 8px; border-radius: 10px; background: var(--surface-2, #EEF0F5); }
 .menu-etat.on { color: #067647; background: #DCFAE6; }
+
+/* ---------- Aide, évaluation, tableau de bord de l'exploitant ---------- */
+.etoiles { display: flex; gap: 6px; justify-content: center; margin: 4px 0 8px; }
+.etoiles button { font-size: 34px; line-height: 1; background: none; border: 0; cursor: pointer; color: var(--ligne-2, #C9CFDB); padding: 2px; }
+.etoiles button[aria-pressed="true"] { color: #F5B300; }
+.cases { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 8px; }
+.cases label { display: flex; align-items: center; gap: 6px; font-weight: 500; }
+.plateforme-bloc { max-width: 960px; margin-bottom: 26px; }
+.stat strong small { font-size: 14px; color: var(--encre-2); font-weight: 600; }
+.carte-capacite { background: var(--surface); border-radius: var(--r-moyen); box-shadow: var(--ombre); padding: 16px 18px; border-inline-start: 5px solid #12B76A; }
+.carte-capacite.attention { border-color: #F5B300; }
+.carte-capacite.alerte { border-color: var(--danger); }
+.carte-capacite p { margin: 0 0 10px; }
+.graphe-capacite { width: 100%; height: auto; display: block; margin: 6px 0 8px; }
+.graphe-capacite .b-ok { fill: var(--accent); }
+.graphe-capacite .b-alerte { fill: var(--danger); }
+.graphe-capacite .ligne-seuil { stroke: var(--danger); stroke-dasharray: 5 4; stroke-width: 1.5; }
+.graphe-capacite .texte-seuil { fill: var(--danger); font-size: 12px; font-weight: 600; }
+.texte-long { max-width: 420px; white-space: pre-wrap; }
+.graphe-capacite rect, .graphe-capacite text { stroke: none; }
+.graphe-capacite line { fill: none; }

@@ -51,6 +51,7 @@ app.use('/api/plateforme', require('./src/routes/plateforme'));
 app.use('/api/invite', require('./src/routes/invite'));
 app.use('/api/conversations', require('./src/routes/conversations'));
 app.use('/api/notifications', require('./src/routes/notifications'));
+app.use('/api/aide', require('./src/routes/aide'));
 app.use('/api', require('./src/routes/fichiers'));
 app.use('/api', (req, res) => res.status(404).json({ erreur: t(req, 'route_inconnue') }));
 

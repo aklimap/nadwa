@@ -207,6 +207,36 @@ if (!colonnes('utilisateurs').includes('notif_email')) db.exec('ALTER TABLE util
 if (!colonnes('utilisateurs').includes('notif_push')) db.exec('ALTER TABLE utilisateurs ADD COLUMN notif_push INTEGER NOT NULL DEFAULT 1');
 if (!colonnes('seances').includes('rappel_envoye')) db.exec('ALTER TABLE seances ADD COLUMN rappel_envoye INTEGER NOT NULL DEFAULT 0');
 
+// Soutien technique, évaluation des réunions et suivi de la capacité (exploitant).
+db.exec(`
+CREATE TABLE IF NOT EXISTS retours (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  utilisateur_id  INTEGER REFERENCES utilisateurs(id) ON DELETE SET NULL,
+  type            TEXT NOT NULL,
+  message         TEXT NOT NULL,
+  page            TEXT,
+  navigateur      TEXT,
+  cree_le         TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE TABLE IF NOT EXISTS evaluations (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  utilisateur_id   INTEGER REFERENCES utilisateurs(id) ON DELETE SET NULL,
+  seance_id        INTEGER REFERENCES seances(id) ON DELETE SET NULL,
+  conversation_id  INTEGER REFERENCES conversations(id) ON DELETE SET NULL,
+  note             INTEGER NOT NULL CHECK (note BETWEEN 1 AND 5),
+  problemes        TEXT,
+  commentaire      TEXT,
+  duree_s          INTEGER,
+  cree_le          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE TABLE IF NOT EXISTS mesures_capacite (
+  horodatage    TEXT PRIMARY KEY,
+  reunions      INTEGER NOT NULL,
+  participants  INTEGER NOT NULL,
+  plus_grande   INTEGER NOT NULL
+);
+`);
+
 // Clavardage d'équipe : une conversation de groupe rattachée à chaque équipe.
 if (!colonnes('conversations').includes('classe_id')) {
   db.exec('ALTER TABLE conversations ADD COLUMN classe_id INTEGER REFERENCES classes(id) ON DELETE CASCADE');
