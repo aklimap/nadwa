@@ -4,6 +4,7 @@
  * - Sinon Jitsi, pratique pour une démonstration sans serveur de visio.
  */
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const config = require('./config');
 const { ErreurHttp } = require('./metier');
 const { t } = require('./i18n');
@@ -59,6 +60,28 @@ async function creerReunionBBB(seance, classe, langue, logo) {
   throw new ErreurHttp(502, `${t(langue, 'bbb_refus')}${message ? ` (${message})` : ''}`);
 }
 
+// ---------- Jitsi ----------
+
+/**
+ * Jeton d'animateur pour un serveur Jitsi privé (jitsi-meet-tokens).
+ * Seuls les animateurs en reçoivent un : ils ouvrent la salle et en sont modérateurs ;
+ * les autres participants entrent comme invités, une fois l'animateur arrivé.
+ */
+function jetonJitsi(salle, utilisateur) {
+  if (!config.jitsiAppId || !config.jitsiAppSecret) return null;
+  return jwt.sign(
+    {
+      aud: 'jitsi',
+      iss: config.jitsiAppId,
+      sub: config.jitsiDomaine,
+      room: salle.toLowerCase(),
+      context: { user: { id: String(utilisateur.id), name: utilisateur.nom, moderator: true } },
+    },
+    config.jitsiAppSecret,
+    { algorithm: 'HS256', expiresIn: '12h', notBefore: -60 },
+  );
+}
+
 // ---------- Point d'entrée ----------
 
 /**
@@ -81,10 +104,12 @@ async function lienVisio({ seance, classe, utilisateur, moderateur, langue = 'en
 
   const salle = encodeURIComponent(seance.reunion_id);
   const nom = encodeURIComponent(JSON.stringify(utilisateur.nom));
+  const jeton = moderateur ? jetonJitsi(seance.reunion_id, utilisateur) : null;
+  const requete = jeton ? `?jwt=${jeton}` : '';
   return {
     fournisseur: 'jitsi',
     // Choix faits avant d'entrer : micro et caméra activés ou coupés au démarrage.
-    url: `https://${config.jitsiDomaine}/${salle}#userInfo.displayName=${nom}&config.startWithAudioMuted=${!micro}&config.startWithVideoMuted=${!camera}&config.prejoinConfig.enabled=false`,
+    url: `https://${config.jitsiDomaine}/${salle}${requete}#userInfo.displayName=${nom}&config.startWithAudioMuted=${!micro}&config.startWithVideoMuted=${!camera}&config.prejoinConfig.enabled=false`,
   };
 }
 

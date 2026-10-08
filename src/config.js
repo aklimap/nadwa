@@ -32,4 +32,7 @@ module.exports = {
   bbbUrl: (process.env.BBB_URL || '').trim(),
   bbbSecret: (process.env.BBB_SECRET || '').trim(),
   jitsiDomaine: (process.env.JITSI_DOMAINE || 'meet.jit.si').trim(),
+  // Serveur Jitsi privé sécurisé par jetons (JWT) : l'animateur entre sans mot de passe.
+  jitsiAppId: (process.env.JITSI_APP_ID || '').trim(),
+  jitsiAppSecret: (process.env.JITSI_APP_SECRET || '').trim(),
 };

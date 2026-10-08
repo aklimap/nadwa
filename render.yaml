@@ -42,6 +42,13 @@ services:
         sync: false
       - key: MAIL_FROM
         sync: false
+      # Visio Jitsi auto-hébergée (voir le README) : domaine, puis identifiant et secret des jetons
+      - key: JITSI_DOMAINE
+        sync: false
+      - key: JITSI_APP_ID
+        sync: false
+      - key: JITSI_APP_SECRET
+        sync: false
       - key: BBB_URL
         sync: false
       - key: BBB_SECRET
