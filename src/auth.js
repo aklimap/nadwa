@@ -37,7 +37,18 @@ function exigerConnexion(req, res, next) {
   const utilisateur = utilisateurDepuisJeton(req.cookies?.[NOM_COOKIE]);
   if (!utilisateur) return res.status(401).json({ erreur: t(req, 'auth_requise') });
   req.utilisateur = utilisateur;
+  noterActivite(utilisateur.id);
   next();
+}
+
+/** Note la dernière activité, au plus une fois par heure (pour compter les utilisateurs actifs). */
+function noterActivite(id) {
+  const maintenant = new Date();
+  const ilYaUneHeure = new Date(maintenant.getTime() - 3600e3).toISOString();
+  try {
+    db.prepare('UPDATE utilisateurs SET derniere_activite = ? WHERE id = ? AND (derniere_activite IS NULL OR derniere_activite < ?)')
+      .run(maintenant.toISOString(), id, ilYaUneHeure);
+  } catch { /* sans incidence sur la requête */ }
 }
 
 /** Réservé à l'exploitant de la plateforme. */

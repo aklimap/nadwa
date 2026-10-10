@@ -208,6 +208,8 @@ if (!colonnes('utilisateurs').includes('notif_push')) db.exec('ALTER TABLE utili
 if (!colonnes('seances').includes('rappel_envoye')) db.exec('ALTER TABLE seances ADD COLUMN rappel_envoye INTEGER NOT NULL DEFAULT 0');
 
 // Vérification de l'adresse e-mail à l'inscription (les comptes existants sont considérés vérifiés).
+// Dernière activité (mise à jour au plus une fois par heure) : sert à compter les utilisateurs actifs.
+if (!colonnes('utilisateurs').includes('derniere_activite')) db.exec('ALTER TABLE utilisateurs ADD COLUMN derniere_activite TEXT');
 if (!colonnes('utilisateurs').includes('email_verifie')) db.exec('ALTER TABLE utilisateurs ADD COLUMN email_verifie INTEGER NOT NULL DEFAULT 1');
 db.exec(`
 CREATE TABLE IF NOT EXISTS verifications_email (

@@ -32,9 +32,29 @@ function qualite() {
   return { n: resume.n, moyenne: resume.moyenne, notes, problemes, commentaires };
 }
 
+function comptes() {
+  const depuis = (jours) => new Date(Date.now() - jours * 864e5).toISOString();
+  const compter = (sql, ...params) => db.prepare(sql).get(...params).n;
+  const nouveaux = (jours) => compter('SELECT COUNT(*) AS n FROM utilisateurs WHERE cree_le >= ?', depuis(jours));
+  const actifs = (jours) => compter('SELECT COUNT(*) AS n FROM utilisateurs WHERE derniere_activite >= ?', depuis(jours));
+  return {
+    total: compter('SELECT COUNT(*) AS n FROM utilisateurs'),
+    verifies: compter('SELECT COUNT(*) AS n FROM utilisateurs WHERE email_verifie = 1'),
+    nouveaux: { jour: nouveaux(1), semaine: nouveaux(7), mois: nouveaux(30) },
+    actifs: { jour: actifs(1), semaine: actifs(7), mois: actifs(30) },
+    sans_organisation: compter(`SELECT COUNT(*) AS n FROM utilisateurs u WHERE NOT EXISTS (
+      SELECT 1 FROM adhesions a JOIN espaces e ON e.id = a.espace_id WHERE a.utilisateur_id = u.id AND e.personnel = 0)`),
+    par_jour: db.prepare(`SELECT substr(cree_le, 1, 10) AS jour, COUNT(*) AS n FROM utilisateurs
+      WHERE cree_le >= ? GROUP BY jour ORDER BY jour`).all(depuis(30)),
+    derniers: db.prepare(`SELECT nom, email, email_verifie, cree_le, derniere_activite FROM utilisateurs
+      ORDER BY id DESC LIMIT 20`).all(),
+  };
+}
+
 routeur.get('/', (req, res) => {
   const n = (sql) => db.prepare(sql).get().n;
   res.json({
+    comptes: comptes(),
     capacite: capacite(),
     qualite: qualite(),
     retours: db.prepare(`SELECT r.id, r.type, r.message, r.page, r.cree_le, u.nom, u.email FROM retours r

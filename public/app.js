@@ -2053,7 +2053,8 @@ $('#btn-ajouter-membre').addEventListener('click', () => openDialog('dlg-membre'
 // ---------- Plateforme (exploitant) ----------
 async function loadPlatform() {
   try {
-    const { stats, espaces, capacite, qualite, retours } = await api('/plateforme');
+    const { stats, espaces, comptes, capacite, qualite, retours } = await api('/plateforme');
+    renderAccounts(comptes);
     renderCapacity(capacite);
     renderQuality(qualite);
     renderFeedback(retours);
@@ -2063,6 +2064,41 @@ async function loadPlatform() {
       <thead><tr><th>${t('col_org')}</th><th>${t('col_personnes')}</th><th>${t('col_equipes')}</th><th>${t('col_creee')}</th></tr></thead>
       <tbody>${espaces.map((o) => `<tr><td>${esc(o.personnel ? `${o.nom} (${t('mon_espace')})` : o.nom)}</td><td>${o.nb_membres}</td><td>${o.nb_groupes}</td><td>${esc(fmt.date.format(new Date(o.cree_le)))}</td></tr>`).join('')}</tbody></table>`;
   } catch (err) { toast(err.message); }
+}
+
+function renderAccounts(c) {
+  const jours = [];
+  for (let i = 29; i >= 0; i -= 1) {
+    const d = new Date(Date.now() - i * 864e5).toISOString().slice(0, 10);
+    jours.push({ d, n: c.par_jour.find((x) => x.jour === d)?.n || 0 });
+  }
+  const max = Math.max(1, ...jours.map((j) => j.n));
+  const W = 600; const H = 110; const bw = W / jours.length;
+  const y = (n) => H - (n / max) * H;
+  const barres = jours.map((j, i) => `<rect x="${i * bw + 1}" y="${y(j.n)}" width="${bw - 2}" height="${H - y(j.n)}" rx="2" class="b-ok"><title>${esc(fmt.date.format(new Date(j.d)))} : ${j.n}</title></rect>`).join('');
+  const quand = (iso) => (iso ? esc(fmt.date.format(new Date(iso))) : '—');
+  $('#plateforme-comptes').innerHTML = `
+    <h2 class="sous-titre">${t('utilisateurs')}</h2>
+    <div class="stats">
+      <div class="stat"><strong>${c.total}</strong><span>${t('u_total')}</span></div>
+      <div class="stat"><strong>${c.actifs.semaine}</strong><span>${t('u_actifs_7j')} · ${t('u_actifs_jour', { n: c.actifs.jour })}</span></div>
+      <div class="stat"><strong>${c.actifs.mois}</strong><span>${t('u_actifs_30j')}</span></div>
+      <div class="stat"><strong>+${c.nouveaux.semaine}</strong><span>${t('u_nouveaux_7j')} · ${t('u_nouveaux_30j', { n: c.nouveaux.mois })}</span></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><strong>${c.verifies}</strong><span>${t('u_verifies')}</span></div>
+      <div class="stat"><strong>${c.total - c.verifies}</strong><span>${t('u_non_verifies')}</span></div>
+      <div class="stat"><strong>${c.sans_organisation}</strong><span>${t('u_sans_org')}</span></div>
+    </div>
+    <div class="carte-capacite">
+      <p><strong>${t('u_graphe')}</strong></p>
+      <svg viewBox="0 0 ${W} ${H + 4}" class="graphe-capacite" role="img" aria-label="${esc(t('u_graphe'))}">${barres}</svg>
+      <p class="note">${t('u_note')}</p>
+    </div>
+    <h3 class="sous-titre">${t('u_derniers')}</h3>
+    <div class="tableau"><table><thead><tr><th>${t('col_personne')}</th><th>${t('u_inscrit_le')}</th><th>${t('u_derniere_activite')}</th><th>${t('u_email_verifie')}</th></tr></thead><tbody>
+      ${c.derniers.map((u) => `<tr><td>${esc(u.nom)}<br><small dir="ltr">${esc(u.email)}</small></td><td>${quand(u.cree_le)}</td><td>${quand(u.derniere_activite)}</td><td>${u.email_verifie ? '✓' : '—'}</td></tr>`).join('')}
+    </tbody></table></div>`;
 }
 
 function renderCapacity(c) {
