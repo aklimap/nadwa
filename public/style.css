@@ -463,6 +463,12 @@ fieldset.participants legend { padding: 0; margin-bottom: 4px; font-weight: 600;
   .cal-barre, .cal-corps { padding-left: 12px; padding-right: 12px; }
   .champs-ligne { grid-template-columns: 1fr; }
   .detail-ligne .btn span { display: none; }
+  .detail-ligne { gap: 8px; }
+  .detail-ligne #btn-reunion svg:last-child:not(:first-child) { display: none; }
+  /* Réunion en cours : texte sur toute la largeur, boutons dessous */
+  .en-cours { flex-wrap: wrap; }
+  .en-cours-texte { flex: 1 1 calc(100% - 56px); }
+  .en-cours .btn { flex: 1 1 0; justify-content: center; }
 }
 [dir="rtl"] .retour svg { transform: scaleX(-1); }
 
