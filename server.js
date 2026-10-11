@@ -75,6 +75,12 @@ app.get('/.well-known/assetlinks.json', (req, res) => {
     target: { namespace: 'android_app', package_name: process.env.ANDROID_PACKAGE || 'com.nadwalive.app', sha256_cert_fingerprints: empreintes },
   }] : []);
 });
+// Visuels de promotion (captures de démonstration) : utilisables par d'autres sites et outils vidéo.
+app.use('/promo', (req, res, next) => {
+  res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.set('Access-Control-Allow-Origin', '*');
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 app.get('*', envoyerAccueil);
 
