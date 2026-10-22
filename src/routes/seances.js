@@ -6,6 +6,7 @@ const { etatSeance, peutAnimer, seanceAccessible, ajouterInvites, jetonInvite, O
 const { annoncerSeances } = require('./classes');
 const { t, langueDe } = require('../i18n');
 const limites = require('../limites');
+const salle = require('../salle-attente');
 
 const routeur = express.Router();
 routeur.use(exigerConnexion);
@@ -21,6 +22,9 @@ function trouver(req, res) {
   if (!acces) res.status(404).json({ erreur: t(req, 'reunion_introuvable') });
   return acces;
 }
+
+// Salle d'attente : toutes les demandes en attente pour les réunions dont on est hôte.
+routeur.get('/salle-attente', (req, res) => res.json(salle.pourHote(req.utilisateur.id)));
 
 // Renvoie le lien d'entrée dans la salle de visio.
 routeur.post('/:id/rejoindre', async (req, res, next) => {
@@ -104,6 +108,27 @@ routeur.delete('/:id/participants/:uid', (req, res) => {
   res.json({ invites: invitesDe(seance.id) });
 });
 
+// Salle d'attente : personnes qui demandent à entrer (visible par les organisateurs).
+routeur.get('/:id/demandes', (req, res) => {
+  const acces = trouver(req, res);
+  if (!acces) return;
+  const { seance, classe } = acces;
+  if (!peutAnimer(req.utilisateur, seance, classe)) return res.json([]);
+  res.json(salle.enAttente(seance.id));
+});
+
+// Admettre ou refuser une personne de la salle d'attente.
+routeur.post('/:id/demandes/:did', (req, res) => {
+  const acces = trouver(req, res);
+  if (!acces) return;
+  const { seance, classe } = acces;
+  if (!peutAnimer(req.utilisateur, seance, classe)) return res.status(403).json({ erreur: t(req, 'admettre_hote') });
+  const decision = req.body?.decision === 'admettre' ? 'admettre' : 'refuser';
+  const d = salle.decider(req.app.get('io'), seance, req.params.did, decision);
+  if (!d) return res.status(404).json({ erreur: t(req, 'demande_traitee') });
+  res.json({ ok: true, statut: d.statut });
+});
+
 // Retirer un invité sans compte (adresse e-mail).
 routeur.delete('/:id/externes', (req, res) => {
   const acces = trouver(req, res);
@@ -124,6 +149,7 @@ routeur.post('/:id/terminer', (req, res) => {
   const organisateur = seance.organisateur_id ? seance.organisateur_id === req.utilisateur.id : peutAnimer(req.utilisateur, seance, classe);
   if (!organisateur) return res.status(403).json({ erreur: t(req, 'terminer_reunion_owner') });
   db.prepare('UPDATE seances SET terminee_le = ? WHERE id = ?').run(new Date().toISOString(), seance.id);
+  salle.fermer(req.app.get('io'), seance);
   annoncerSeances(req, classe.id, invitesDe(seance.id).map((p) => p.id));
   res.json({ ok: true });
 });

@@ -566,7 +566,17 @@ function connectSocket() {
   if (state.socket) return;
   const socket = io({ withCredentials: true, auth: { langue: window.NADWA_LANGUE } });
   state.socket = socket;
-  socket.on('connect', () => { if (state.teamId) socket.emit('classe:rejoindre', state.teamId); });
+  socket.on('connect', () => { if (state.teamId) socket.emit('classe:rejoindre', state.teamId); loadLobby(); });
+  socket.on('salle:demande', (d) => {
+    attente.set(d.id, d);
+    renderLobby();
+    lobbyChime();
+  });
+  socket.on('salle:maj', ({ id, seance_id, tout }) => {
+    if (tout) [...attente.values()].filter((d) => d.seance_id === seance_id).forEach((d) => attente.delete(d.id));
+    else attente.delete(id);
+    renderLobby();
+  });
   socket.on('message:nouveau', (m) => {
     if (m.classe_id !== state.teamId) return;
     if (m.canal_id === state.channelId && state.tab === 'publications' && state.view === 'classes') appendPost(m, true);
@@ -1460,15 +1470,144 @@ $('#visio-terminer').addEventListener('click', async () => {
   } catch (err) { toast(err.message); }
 });
 
+// ---------- Salle d'attente (comme Teams) ----------
+const lobby = { demande: null, secret: null, jeton: null, timer: null, fini: null };
+
+/**
+ * L'invité patiente jusqu'à ce qu'un organisateur l'admette.
+ * Renvoie la réponse de visio une fois admis, ou null (refusé, parti, expiré).
+ */
+function waitInLobby({ demande, secret }, options) {
+  Object.assign(lobby, { demande, secret, jeton: prejoin.jeton });
+  const carte = $('#form-rejoindre')?.closest('.carte');
+  const avant = carte?.innerHTML;
+  const nomSaisi = $('#form-rejoindre [name=nom]')?.value || '';
+  if (carte) {
+    carte.innerHTML = `
+      <div class="attente">
+        <span class="attente-anneau" aria-hidden="true"></span>
+        <h2>${t('attente_titre')}</h2>
+        <p class="note">${t('attente_texte')}</p>
+        <button type="button" class="btn btn-contour" id="attente-quitter">${t('attente_quitter')}</button>
+      </div>`;
+  }
+  const restaurer = (message) => {
+    if (carte && avant !== undefined) {
+      carte.innerHTML = avant;
+      const f = $('#form-rejoindre');
+      if (f?.nom) f.nom.value = nomSaisi;
+      f?.addEventListener('submit', (e) => { e.preventDefault(); if (f.reportValidity()) joinNow(f); });
+      if (message && f) $('.erreur', f).textContent = message;
+    }
+  };
+  return new Promise((resolve) => {
+    const finir = (valeur, message) => {
+      clearInterval(lobby.timer);
+      Object.assign(lobby, { demande: null, secret: null, timer: null, fini: null });
+      if (!valeur) restaurer(message);
+      resolve(valeur);
+    };
+    lobby.fini = finir;
+    const url = () => `/invite/${lobby.jeton}/demande/${demande}?secret=${encodeURIComponent(secret)}`;
+    const verifier = async () => {
+      try {
+        const r = await api(`${url()}&micro=${options.micro ? 1 : 0}&camera=${options.camera ? 1 : 0}`);
+        if (r.statut === 'admise') finir(r);
+        else if (r.statut === 'refusee') finir(null, t('attente_refusee'));
+        else if (r.statut === 'terminee') finir(null, t('reunion_terminee_ok'));
+        else if (r.statut !== 'attente') finir(null, t('attente_expiree'));
+      } catch (err) { if (err.status === 404) finir(null, t('attente_expiree')); }
+    };
+    lobby.timer = setInterval(verifier, 2000);
+    $('#attente-quitter')?.addEventListener('click', () => {
+      api(url(), { method: 'DELETE' }).catch(() => {});
+      finir(null);
+    });
+  });
+}
+// Fermer l'onglet pendant l'attente : la demande disparaît chez l'organisateur.
+window.addEventListener('pagehide', () => {
+  if (lobby.demande) navigator.sendBeacon?.(`/api/invite/${lobby.jeton}/demande/${lobby.demande}/quitter?secret=${encodeURIComponent(lobby.secret)}`);
+});
+
+// Côté organisateur : cartes « X attend dans la salle d'attente » avec Admettre / Refuser,
+// visibles partout dans Nadwa, y compris par-dessus la visio.
+const attente = new Map(); // id de demande -> demande
+function renderLobby() {
+  let zone = $('#salle-attente');
+  if (!zone) {
+    zone = document.createElement('div');
+    zone.id = 'salle-attente';
+    zone.setAttribute('role', 'region');
+    zone.setAttribute('aria-live', 'polite');
+    document.body.append(zone);
+    zone.addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-decision]');
+      if (!b) return;
+      const ids = b.dataset.demande === '*' ? [...attente.keys()] : [b.dataset.demande];
+      for (const id of ids) {
+        const d = attente.get(id);
+        if (!d) continue;
+        attente.delete(id);
+        try { await api(`/seances/${d.seance_id}/demandes/${id}`, { method: 'POST', body: { decision: b.dataset.decision } }); }
+        catch (err) { toast(err.message); }
+      }
+      renderLobby();
+    });
+  }
+  // Une dialog ouverte est au premier plan : on y place les cartes pour qu'elles restent visibles.
+  const dlg = [...document.querySelectorAll('dialog[open]')].pop();
+  (dlg || document.body).append(zone);
+  const liste = [...attente.values()];
+  zone.hidden = !liste.length;
+  zone.innerHTML = `
+    ${liste.length > 1 ? `<div class="attente-entete"><strong>${esc(t('attente_n', { n: liste.length }))}</strong><button class="btn btn-accent btn-petit" data-decision="admettre" data-demande="*">${t('admettre_tous')}</button></div>` : ''}
+    ${liste.slice(0, 5).map((d) => `
+      <div class="attente-carte">
+        ${avatarP(0, d.nom, 'petit')}
+        <div class="attente-qui"><strong>${esc(t('attend_salle', { nom: d.nom }))}</strong><small>${esc(d.titre || '')}</small></div>
+        <div class="attente-actions">
+          <button class="btn btn-contour btn-petit" data-decision="refuser" data-demande="${esc(d.id)}">${t('refuser')}</button>
+          <button class="btn btn-accent btn-petit" data-decision="admettre" data-demande="${esc(d.id)}">${t('admettre')}</button>
+        </div>
+      </div>`).join('')}`;
+}
+function lobbyChime() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [660, 880].forEach((f, i) => {
+      const o = ctx.createOscillator(); const g = ctx.createGain();
+      o.frequency.value = f; o.connect(g); g.connect(ctx.destination);
+      const t0 = ctx.currentTime + i * 0.18;
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.15, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.3);
+      o.start(t0); o.stop(t0 + 0.32);
+    });
+  } catch { /* son indisponible */ }
+}
+async function loadLobby() {
+  try {
+    const liste = await api('/seances/salle-attente');
+    attente.clear();
+    liste.forEach((d) => attente.set(d.id, d));
+    renderLobby();
+  } catch { /* sans incidence */ }
+}
+new MutationObserver(() => { if (attente.size) renderLobby(); })
+  .observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
+
 async function joinNow(form) {
   const button = $('[type=submit]', form);
   button.disabled = true;
   $('.erreur', form).textContent = '';
   const options = { micro: prejoin.micro, camera: prejoin.camera };
   try {
-    const reponse = prejoin.mode === 'invite'
+    let reponse = prejoin.mode === 'invite'
       ? await api(`/invite/${prejoin.jeton}/rejoindre`, { method: 'POST', body: { nom: form.nom.value, ...options } })
       : await api(`/seances/${prejoin.id}/rejoindre`, { method: 'POST', body: options });
+    if (reponse.attente) {
+      reponse = await waitInLobby(reponse, options);
+      if (!reponse) return;
+    }
     stopPreview();
     const { mode, id, jeton, info } = prejoin;
     const organisateur = mode !== 'invite' && info && (info.organisateur_id ? info.organisateur_id === state.me?.id : canHost(info));

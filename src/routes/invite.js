@@ -9,6 +9,7 @@ const { etatSeance, seanceAccessible, OUVERTURE_AVANT_MIN } = require('../metier
 const { NOM_COOKIE, utilisateurDepuisJeton } = require('../auth');
 const { t, langueDe } = require('../i18n');
 const limites = require('../limites');
+const salle = require('../salle-attente');
 
 const routeur = express.Router();
 
@@ -35,25 +36,65 @@ routeur.get('/:jeton', (req, res) => {
   });
 });
 
-routeur.post('/:jeton/rejoindre', async (req, res, next) => {
+const logoDe = (req) => `${req.protocol}://${req.get('host')}/logo-nadwa${langueDe(req) === 'ar' ? '-ar' : ''}.svg`;
+
+/**
+ * Demande d'entrée par le lien : la personne patiente dans la salle d'attente jusqu'à ce
+ * qu'un organisateur l'admette (comme dans Teams). Réponse : { attente: true, demande, secret }.
+ */
+routeur.post('/:jeton/rejoindre', (req, res) => {
+  const { seance, classe } = trouver(req, res);
+  if (!seance) return;
+  const nom = String(req.body?.nom ?? '').trim().slice(0, 60);
+  if (nom.length < 2) return res.status(400).json({ erreur: t(req, 'nom_invite') });
+  const etat = etatSeance(seance);
+  if (etat === 'a_venir') return res.status(403).json({ erreur: t(req, 'salle_ouvre', { min: OUVERTURE_AVANT_MIN }) });
+  if (etat === 'terminee') return res.status(403).json({ erreur: t(req, 'reunion_terminee') });
+  const refus = limites.controlerEntree(seance, classe, langueDe(req));
+  if (refus) return res.status(403).json({ erreur: refus });
+
+  const demande = salle.demander(req.app.get('io'), seance, nom);
+  if (!demande) return res.status(429).json({ erreur: t(req, 'salle_attente_pleine') });
+  res.json({ attente: true, demande: demande.id, secret: demande.secret });
+});
+
+/**
+ * Suivi de la demande par la personne qui attend (interrogé toutes les 2 secondes).
+ * Une fois admise, la réponse contient le lien de la visio.
+ */
+routeur.get('/:jeton/demande/:id', async (req, res, next) => {
   try {
     const { seance, classe } = trouver(req, res);
     if (!seance) return;
-    const nom = String(req.body?.nom ?? '').trim().slice(0, 60);
-    if (nom.length < 2) return res.status(400).json({ erreur: t(req, 'nom_invite') });
-    const etat = etatSeance(seance);
-    if (etat === 'a_venir') return res.status(403).json({ erreur: t(req, 'salle_ouvre', { min: OUVERTURE_AVANT_MIN }) });
-    if (etat === 'terminee') return res.status(403).json({ erreur: t(req, 'reunion_terminee') });
+    const d = salle.lire(seance.id, req.params.id, req.query.secret);
+    if (!d) return res.status(404).json({ erreur: t(req, 'demande_introuvable') });
+    if (etatSeance(seance) === 'terminee' && d.statut === 'attente') d.statut = 'terminee';
+    if (d.statut !== 'admise') return res.json({ statut: d.statut });
 
-    const refus = limites.controlerEntree(seance, classe, langueDe(req));
-    if (refus) return res.status(403).json({ erreur: refus });
     limites.noterOuverture(seance);
+    const invite = { id: `invite-${d.id}`, nom: `${d.nom} (${t(req, 'invite_externe')})` };
+    const visioLien = await visio.lienVisio({
+      seance, classe, utilisateur: invite, moderateur: false, langue: langueDe(req),
+      micro: req.query.micro !== '0', camera: req.query.camera !== '0', logo: logoDe(req),
+    });
+    res.json({ statut: 'admise', ...visioLien });
+  } catch (err) { next(err); }
+});
 
-    const invite = { id: `invite-${Date.now()}`, nom: `${nom} (${t(req, 'invite_externe')})` };
-    res.json(await visio.lienVisio({ seance, classe, utilisateur: invite, moderateur: false, langue: langueDe(req), micro: req.body?.micro !== false, camera: req.body?.camera !== false, logo: `${req.protocol}://${req.get('host')}/logo-nadwa${langueDe(req) === 'ar' ? '-ar' : ''}.svg` }));
-  } catch (err) {
-    next(err);
-  }
+/** La personne quitte la salle d'attente (bouton, ou fermeture de l'onglet). */
+routeur.post('/:jeton/demande/:id/quitter', (req, res) => {
+  const { seance } = trouver(req, res);
+  if (!seance) return;
+  const d = salle.lire(seance.id, req.params.id, req.query.secret);
+  if (d) salle.annuler(req.app.get('io'), seance, d);
+  res.json({ ok: true });
+});
+routeur.delete('/:jeton/demande/:id', (req, res) => {
+  const { seance } = trouver(req, res);
+  if (!seance) return;
+  const d = salle.lire(seance.id, req.params.id, req.query.secret);
+  if (d) salle.annuler(req.app.get('io'), seance, d);
+  res.json({ ok: true });
 });
 
 module.exports = routeur;

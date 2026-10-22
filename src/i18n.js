@@ -130,6 +130,11 @@ const MESSAGES = {
   mail_invit_sans_compte: ['No account needed: open the link, type your name and join. Works in the browser, on computer and phone.', 'Aucun compte nécessaire : ouvrez le lien, indiquez votre nom et rejoignez. Fonctionne dans le navigateur, sur ordinateur et téléphone.', 'لا حاجة إلى حساب: افتح الرابط واكتب اسمك وانضم. يعمل في المتصفح على الحاسوب والهاتف.'],
   mail_invit_rejoindre: ['Join the meeting', 'Rejoindre la réunion', 'الانضمام إلى الاجتماع'],
   mail_invit_pied: ['The attached file adds the meeting to your calendar.', "Le fichier joint ajoute la réunion à votre agenda.", 'يضيف الملف المرفق الاجتماع إلى تقويمك.'],
+  notif_salle_attente: ['{nom} is waiting in the lobby', '{nom} attend dans la salle d\'attente', '{nom} ينتظر في قاعة الانتظار'],
+  salle_attente_pleine: ['Too many people are waiting to join. Try again in a moment.', "Trop de personnes attendent d'entrer. Réessayez dans un instant.", 'عدد المنتظرين للدخول كبير. حاول مجددًا بعد قليل.'],
+  demande_introuvable: ['This request to join has expired. Try again.', "Cette demande d'entrée a expiré. Réessayez.", 'انتهت صلاحية طلب الدخول هذا. حاول مجددًا.'],
+  demande_traitee: ['This person has already been admitted, declined, or left.', 'Cette personne a déjà été admise, refusée, ou est partie.', 'تم قبول هذا الشخص أو رفضه أو أنه غادر.'],
+  admettre_hote: ['Only the meeting organizer can admit people.', "Seul l'organisateur de la réunion peut admettre des personnes.", 'منظم الاجتماع وحده يمكنه قبول الأشخاص.'],
   bbb_bienvenue: ['Welcome to {nom}.', 'Bienvenue dans {nom}.', 'مرحبًا بكم في {nom}.'],
 };
 
