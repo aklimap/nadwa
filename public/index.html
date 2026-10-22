@@ -78,6 +78,7 @@
     <header class="visio-barre">
       <strong class="visio-titre" id="visio-titre"></strong>
       <div class="visio-actions">
+        <button class="btn btn-contour-clair" id="visio-inviter" hidden><span data-i18n="ajouter_personnes"></span></button>
         <button class="btn btn-danger" id="visio-terminer" data-i18n="terminer_pour_tous" hidden></button>
         <button class="btn btn-contour-clair" id="visio-quitter" data-i18n="quitter"></button>
       </div>
@@ -479,6 +480,25 @@
       <div class="dlg-actions">
         <button type="button" class="btn btn-contour" data-fermer data-i18n="plus_tard"></button>
         <button type="submit" class="btn btn-accent" data-i18n="envoyer"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Ajouter des personnes pendant la réunion (par-dessus la visio, comme Teams) -->
+  <dialog id="dlg-inviter-visio">
+    <form>
+      <h2 data-i18n="ajouter_personnes"></h2>
+      <div id="iv-ajout">
+        <p class="note" data-i18n="note_ajout_visio"></p>
+        <div class="choix-personnes" id="choix-visio"></div>
+      </div>
+      <h3 data-i18n="lien_invitation"></h3>
+      <div class="lien-ligne"><input readonly dir="ltr" id="iv-lien" data-i18n-aria="lien_invitation"><button type="button" class="btn btn-contour" id="iv-copier" data-i18n="copier_lien"></button></div>
+      <p class="note" data-i18n="note_lien"></p>
+      <p class="erreur" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-contour" data-fermer data-i18n="fermer"></button>
+        <button type="submit" class="btn btn-accent" id="iv-envoyer" data-i18n="envoyer_invitation"></button>
       </div>
     </form>
   </dialog>

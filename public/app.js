@@ -1296,7 +1296,7 @@ function attachPreview() {
 // La réunion s'affiche par-dessus Nadwa, dans un seul onglet. « Quitter » ramène à Nadwa ;
 // « Terminer pour tous » (organisateur) ferme la réunion pour tout le monde. Chaque page
 // vérifie aussi l'état de la réunion et ferme la visio dès qu'elle est terminée.
-const visio = { api: null, etat: null, timer: null, seanceId: null };
+const visio = { api: null, etat: null, timer: null, seanceId: null, inviteId: null };
 let chargementApiJitsi = null;
 
 function chargerApiJitsi(domaine) {
@@ -1315,7 +1315,7 @@ function chargerApiJitsi(domaine) {
  * Ouvre la visio. reponse = réponse de l'API (/rejoindre ou /appel).
  * options : titre, etat (fonction qui renvoie l'état de la réunion), seanceId (si l'on peut la terminer).
  */
-async function openVisio(reponse, { titre = '', etat = null, seanceId = null, ref = null } = {}) {
+async function openVisio(reponse, { titre = '', etat = null, seanceId = null, ref = null, inviteId = null } = {}) {
   const v = reponse.integration;
   if (window.NADWA_OUVRIR_VISIO) { window.NADWA_OUVRIR_VISIO(reponse.url); return; }
   if (!v) { // BigBlueButton : nouvel onglet
@@ -1326,6 +1326,7 @@ async function openVisio(reponse, { titre = '', etat = null, seanceId = null, re
   closeVisio(false);
   $('#visio-titre').textContent = titre;
   $('#visio-terminer').hidden = !seanceId;
+  $('#visio-inviter').hidden = !inviteId;
   $('#ecran-visio').hidden = false;
   const api = new window.JitsiMeetExternalAPI(v.domaine, {
     roomName: v.salle,
@@ -1341,11 +1342,14 @@ async function openVisio(reponse, { titre = '', etat = null, seanceId = null, re
       prejoinConfig: { enabled: false },
       disableDeepLinking: true,
       enableClosePage: false,
+      // L'invitation de Jitsi donne l'adresse brute du serveur vidéo et ne sait pas ajouter
+      // des personnes : on la masque, Nadwa a son propre bouton « Ajouter des personnes ».
+      disableInviteFunctions: true,
       // Grand cours : vidéo limitée à 360p (débit divisé par 2 à 3 pour le serveur et les élèves).
       ...(v.grand ? { resolution: 360, constraints: { video: { height: { ideal: 360, max: 360, min: 180 } } } } : {}),
     },
   });
-  Object.assign(visio, { api, etat, seanceId, ref, debut: Date.now(), timer: etat ? setInterval(checkVisio, 10_000) : null });
+  Object.assign(visio, { api, etat, seanceId, ref, inviteId, debut: Date.now(), timer: etat ? setInterval(checkVisio, 10_000) : null });
   state.socket?.emit('presence:reunion', v.salle);
   // Raccrocher dans la visio, ou être exclu quand l'organisateur termine : retour à Nadwa.
   api.addListener('videoConferenceLeft', () => closeVisio());
@@ -1356,7 +1360,8 @@ function closeVisio(rafraichir = true) {
   clearInterval(visio.timer);
   const api = visio.api;
   const { ref, debut } = visio;
-  Object.assign(visio, { api: null, etat: null, timer: null, seanceId: null, ref: null, debut: null });
+  Object.assign(visio, { api: null, etat: null, timer: null, seanceId: null, ref: null, inviteId: null, debut: null });
+  if ($('#dlg-inviter-visio').open) $('#dlg-inviter-visio').close();
   if (api) { try { api.dispose(); } catch { /* déjà fermée */ } }
   $('#visio-cadre').innerHTML = '';
   $('#ecran-visio').hidden = true;
@@ -1414,6 +1419,31 @@ async function checkVisio() {
 }
 
 $('#visio-quitter').addEventListener('click', () => closeVisio());
+
+/** « Ajouter des personnes » pendant la réunion : noms ou adresses e-mail, et lien à copier. */
+async function openMeetingInvite() {
+  const id = visio.inviteId;
+  if (!id) return;
+  let p;
+  try { p = await api(`/seances/${id}/participants`); } catch (err) { toast(err.message); return; }
+  const lien = inviteLink(p.jeton);
+  const picker = p.peutModifier ? createPicker($('#choix-visio'), loadInvitables, () => {}, { emails: true }) : null;
+  picker?.setExclude([state.me.id, ...p.equipe.membres.map((x) => x.id), ...p.invites.map((x) => x.id)]);
+  openDialog('dlg-inviter-visio', async () => {
+    picker.flush();
+    const ids = picker.ids();
+    const emails = picker.emails();
+    if (!ids.length && !emails.length) throw new Error(t('choisir_personne_email'));
+    await api(`/seances/${id}/participants`, { method: 'POST', body: { ids, emails, fuseau: timeZone() } });
+    toast(t('invitations_envoyees', { n: ids.length + emails.length }));
+  }, () => {
+    $('#iv-ajout').hidden = !picker;
+    $('#iv-envoyer').hidden = !picker;
+    $('#iv-lien').value = lien;
+  });
+}
+$('#visio-inviter').addEventListener('click', openMeetingInvite);
+$('#iv-copier').addEventListener('click', () => copy($('#iv-lien').value, 'lien_copie'));
 $('#visio-terminer').addEventListener('click', async () => {
   const id = visio.seanceId;
   if (!id || !confirm(t('confirmer_fin_reunion'))) return;
@@ -1441,6 +1471,7 @@ async function joinNow(form) {
       titre: info?.titre || '',
       etat: async () => (await api(mode === 'invite' ? `/invite/${jeton}` : `/seances/${id}/etat`)).etat,
       seanceId: organisateur ? id : null,
+      inviteId: mode === 'invite' ? null : id,
       ref: mode === 'invite' ? null : { seance_id: id },
     });
   } catch (err) {
