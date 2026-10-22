@@ -126,7 +126,7 @@ const MESSAGES = {
   mail_invit_sujet: ['Invitation: {titre}', 'Invitation : {titre}', 'دعوة: {titre}'],
   mail_invit_texte: ['{nom} invites you to the meeting "{titre}" on Nadwa.', '{nom} vous invite à la réunion « {titre} » sur Nadwa.', 'يدعوك {nom} إلى الاجتماع «{titre}» على ندوة.'],
   mail_invit_quand: ['When: {quand}', 'Quand : {quand}', 'الموعد: {quand}'],
-  mail_invit_compte: ['The meeting is in your Nadwa calendar. The room opens 10 minutes before the start.', 'La réunion est dans votre agenda Nadwa. La salle ouvre 10 minutes avant le début.', 'الاجتماع في تقويمك على ندوة. تُفتح القاعة قبل البداية بـ 10 دقائق.'],
+  mail_invit_compte: ['The meeting is also in your Nadwa calendar. No need to sign in: open the link, type your name and join. The room opens 10 minutes before the start.', "La réunion est aussi dans votre agenda Nadwa. Pas besoin de vous connecter : ouvrez le lien, indiquez votre nom et rejoignez. La salle ouvre 10 minutes avant le début.", 'الاجتماع موجود أيضًا في تقويمك على ندوة. لا حاجة لتسجيل الدخول: افتح الرابط واكتب اسمك وانضم. تُفتح القاعة قبل البداية بـ 10 دقائق.'],
   mail_invit_sans_compte: ['No account needed: open the link, type your name and join. Works in the browser, on computer and phone.', 'Aucun compte nécessaire : ouvrez le lien, indiquez votre nom et rejoignez. Fonctionne dans le navigateur, sur ordinateur et téléphone.', 'لا حاجة إلى حساب: افتح الرابط واكتب اسمك وانضم. يعمل في المتصفح على الحاسوب والهاتف.'],
   mail_invit_rejoindre: ['Join the meeting', 'Rejoindre la réunion', 'الانضمام إلى الاجتماع'],
   mail_invit_pied: ['The attached file adds the meeting to your calendar.', "Le fichier joint ajoute la réunion à votre agenda.", 'يضيف الملف المرفق الاجتماع إلى تقويمك.'],

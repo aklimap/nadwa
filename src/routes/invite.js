@@ -5,7 +5,8 @@
 const express = require('express');
 const db = require('../db');
 const visio = require('../visio');
-const { etatSeance, OUVERTURE_AVANT_MIN } = require('../metier');
+const { etatSeance, seanceAccessible, OUVERTURE_AVANT_MIN } = require('../metier');
+const { NOM_COOKIE, utilisateurDepuisJeton } = require('../auth');
 const { t, langueDe } = require('../i18n');
 const limites = require('../limites');
 
@@ -23,7 +24,12 @@ routeur.get('/:jeton', (req, res) => {
   const { seance, classe } = trouver(req, res);
   if (!seance) return;
   const organisateur = db.prepare('SELECT nom FROM utilisateurs WHERE id = ?').get(seance.organisateur_id)?.nom || null;
+  // Déjà connecté et invité (ou membre de l'équipe) : l'interface ouvre la réunion dans son compte.
+  // Sinon : entrée avec son nom seulement, sans compte.
+  const moi = utilisateurDepuisJeton(req.cookies?.[NOM_COOKIE]);
+  const seanceId = moi && seanceAccessible(moi, seance.id) ? seance.id : null;
   res.json({
+    seance_id: seanceId,
     titre: seance.titre, debut: seance.debut, duree_min: seance.duree_min, etat: etatSeance(seance),
     equipe: classe.nom, organisateur, ouverture_min: OUVERTURE_AVANT_MIN,
   });

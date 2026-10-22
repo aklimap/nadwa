@@ -178,7 +178,7 @@ function invitationReunion({ seance, organisateur, ids = [], emails = [], fuseau
           texte: `${seance.titre} — ${quandReunion(seance, langue, fuseau)}`,
           chemin, tag: `invit-${seance.id}`, bouton: t(langue, 'notif_voir_reunion'), toujours: true, email: false,
         });
-        if (d.notif_email && d.email) envoi(d.email, langue, false, `${urlBase()}${chemin}`);
+        if (d.notif_email && d.email) envoi(d.email, langue, false, lienInvite);
       }
     }
     for (const email of emails) envoi(email, langueOrg, true, lienInvite);

@@ -1198,6 +1198,11 @@ async function showGuest(jeton) {
   $('#avant-contenu').innerHTML = `<p class="chargement">${t('chargement')}</p>`;
   try {
     const info = await api(`/invite/${jeton}`);
+    if (info.seance_id) { // déjà connecté : la réunion s'ouvre dans son compte
+      history.replaceState(null, '', `/?reunion=${info.seance_id}`);
+      api('/auth/moi').then(start).catch(() => { history.replaceState(null, '', `/r/${jeton}`); prejoin.info = { ...info, organisateur_nom: info.organisateur, jeton }; renderPrejoin(); });
+      return;
+    }
     prejoin.info = { ...info, organisateur_nom: info.organisateur, jeton };
     renderPrejoin();
   } catch (err) { $('#avant-contenu').innerHTML = `<p class="message-info">${esc(err.message)}</p>`; }
