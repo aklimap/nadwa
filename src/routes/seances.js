@@ -10,6 +10,8 @@ const limites = require('../limites');
 const routeur = express.Router();
 routeur.use(exigerConnexion);
 
+const externesDe = (seanceId) => db.prepare('SELECT email FROM seance_invites_externes WHERE seance_id = ? ORDER BY email')
+  .all(seanceId).map((x) => x.email);
 const invitesDe = (seanceId) => db.prepare(`
   SELECT u.id, u.nom, u.email FROM seance_invites i JOIN utilisateurs u ON u.id = i.utilisateur_id
   WHERE i.seance_id = ? ORDER BY u.nom`).all(seanceId);
@@ -65,6 +67,8 @@ routeur.get('/:id/participants', (req, res) => {
     jeton: jetonInvite(seance.id),
     equipe: { id: classe.id, nom: classe.nom, membres: equipe },
     invites: invitesDe(seance.id),
+    externes: peutAnimer(req.utilisateur, seance, classe) ? externesDe(seance.id) : [],
+    nbExternes: externesDe(seance.id).length,
     peutModifier: peutAnimer(req.utilisateur, seance, classe),
     accesEquipe: acces.accesEquipe,
   });
@@ -75,9 +79,18 @@ routeur.post('/:id/participants', (req, res) => {
   if (!acces) return;
   const { seance, classe } = acces;
   if (!peutAnimer(req.utilisateur, seance, classe)) return res.status(403).json({ erreur: t(req, 'participants_hote') });
-  const ajoutes = ajouterInvites(seance, classe.espace_id, req.body?.ids);
-  annoncerSeances(req, classe.id, ajoutes);
-  res.json({ invites: invitesDe(seance.id) });
+  const ajoutes = ajouterInvites(seance, classe, req.utilisateur, { ids: req.body?.ids, emails: req.body?.emails });
+  if (!ajoutes.ids.length && !ajoutes.emails.length) {
+    const demande = (Array.isArray(req.body?.ids) && req.body.ids.length) || (req.body?.emails && String(req.body.emails).trim());
+    if (demande) return res.status(400).json({ erreur: t(req, 'invites_deja') });
+  }
+  if (etatSeance(seance) !== 'terminee') {
+    require('../notifications').invitationReunion({
+      seance, organisateur: req.utilisateur, ...ajoutes, jeton: jetonInvite(seance.id), fuseau: req.body?.fuseau, langue: langueDe(req),
+    });
+  }
+  annoncerSeances(req, classe.id, ajoutes.ids);
+  res.json({ invites: invitesDe(seance.id), externes: externesDe(seance.id), ajoutes });
 });
 
 routeur.delete('/:id/participants/:uid', (req, res) => {
@@ -89,6 +102,16 @@ routeur.delete('/:id/participants/:uid', (req, res) => {
   db.prepare('DELETE FROM seance_invites WHERE seance_id = ? AND utilisateur_id = ?').run(seance.id, uid);
   annoncerSeances(req, classe.id, [uid]);
   res.json({ invites: invitesDe(seance.id) });
+});
+
+// Retirer un invité sans compte (adresse e-mail).
+routeur.delete('/:id/externes', (req, res) => {
+  const acces = trouver(req, res);
+  if (!acces) return;
+  const { seance, classe } = acces;
+  if (!peutAnimer(req.utilisateur, seance, classe)) return res.status(403).json({ erreur: t(req, 'participants_hote') });
+  db.prepare('DELETE FROM seance_invites_externes WHERE seance_id = ? AND email = ?').run(seance.id, String(req.query.email || '').toLowerCase());
+  res.json({ externes: externesDe(seance.id) });
 });
 
 // Terminer la réunion maintenant : réservé à son organisateur (le propriétaire de l'équipe

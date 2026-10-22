@@ -432,8 +432,10 @@ async function openFromLink(url) {
   const p = new URL(url, location.origin).searchParams;
   const conv = Number(p.get('conv')) || null;
   const equipe = Number(p.get('equipe')) || null;
-  if (!conv && !equipe) return;
+  const reunionSeule = Number(p.get('reunion')) || null;
+  if (!conv && !equipe && !reunionSeule) return;
   history.replaceState(null, '', '/');
+  if (!conv && reunionSeule) { showPrejoin(reunionSeule); return; }
   try {
     if (conv) {
       await loadConversations();
@@ -1136,17 +1138,20 @@ function nextFullHour() { const d = new Date(); d.setMinutes(0, 0, 0); d.setHour
 function openScheduler({ teamId = null, debut = null, mode = 'planifier' } = {}) {
   if (!teamId && !state.teams.length) return toast(t('aucune_equipe_planifier'));
   const now = mode === 'maintenant';
-  const picker = createPicker($('#choix-planif'), loadDirectory);
+  const picker = createPicker($('#choix-planif'), loadInvitables, () => {}, { emails: true });
   const refreshExclude = async (id) => { try { picker.setExclude([state.me.id, ...(await teamMemberIds(id))]); } catch { /* sans incidence */ } };
   openDialog('dlg-seance', async (values) => {
     const team = teamId || Number(values.classe_id);
+    picker.flush();
+    const invites = { participants: picker.ids(), emails: picker.emails(), fuseau: timeZone() };
     const body = now
-      ? { immediat: true, titre: values.titre, duree_min: 60, participants: picker.ids() }
-      : { titre: values.titre, debut: new Date(values.debut).toISOString(), duree_min: Number(values.duree_min), participants: picker.ids() };
+      ? { immediat: true, titre: values.titre, duree_min: 60, ...invites }
+      : { titre: values.titre, debut: new Date(values.debut).toISOString(), duree_min: Number(values.duree_min), ...invites };
     const m = await api(`/classes/${team}/seances`, { method: 'POST', body });
     if (team === state.teamId) loadMeetings();
     if (state.view === 'agenda') loadCalendar();
-    if (now) showPrejoin(m.id); else toast(t('reunion_planifiee'));
+    const n = invites.participants.length + invites.emails.length;
+    if (now) showPrejoin(m.id); else toast(t(n ? 'reunion_planifiee_invites' : 'reunion_planifiee', { n }));
   }, (form) => {
     $('#seance-titre-dlg').textContent = t(now ? 'reunion_maintenant' : 'planifier_reunion');
     $('#seance-valider').textContent = t(now ? 'demarrer' : 'planifier');
@@ -1180,7 +1185,7 @@ async function showPrejoin(meetingId) {
     const p = await api(`/seances/${meetingId}/participants`);
     const m = state.meetings.find((x) => x.id === meetingId) || cal.meetings.find((x) => x.id === meetingId)
       || (await api(`/agenda?espace=${state.org.id}&du=${new Date(Date.now() - 864e5).toISOString()}&au=${new Date(Date.now() + 60 * 864e5).toISOString()}`)).find((x) => x.id === meetingId);
-    prejoin.info = { ...m, equipe: p.equipe.nom, nbEquipe: p.equipe.membres.length, invites: p.invites, jeton: p.jeton, peutModifier: p.peutModifier, membres: p.equipe.membres };
+    prejoin.info = { ...m, equipe: p.equipe.nom, nbEquipe: p.equipe.membres.length, invites: p.invites, nbInvites: p.invites.length + (p.nbExternes || 0), jeton: p.jeton, peutModifier: p.peutModifier, membres: p.equipe.membres };
     renderPrejoin();
   } catch (err) { $('#avant-contenu').innerHTML = `<p class="message-info">${esc(err.message)}</p>`; }
 }
@@ -1220,7 +1225,7 @@ function renderPrejoin() {
   const participants = guest ? '' : `
     <div class="carte-ligne">
       <span class="pile-avatars">${m.membres.slice(0, 3).map((p) => avatar(p.id, p.nom, 'petit')).join('')}</span>
-      <span>${esc(t('toute_equipe', { equipe: m.equipe, n: m.nbEquipe }))}${m.invites.length ? `, ${esc(t('n_invites', { n: m.invites.length }))}` : ''}</span>
+      <span>${esc(t('toute_equipe', { equipe: m.equipe, n: m.nbEquipe }))}${m.nbInvites ? `, ${esc(t('n_invites', { n: m.nbInvites }))}` : ''}</span>
     </div>`;
   $('#avant-retour').hidden = false;
   $('#avant-retour').textContent = t(guest ? 'invite_compte' : 'retour');
@@ -1660,17 +1665,35 @@ async function loadDirectory() {
   }
   return directory.people;
 }
+/** Personnes proposées pour une réunion : l'organisation actuelle et tous ses contacts. */
+async function loadInvitables() {
+  const [org, contacts] = await Promise.all([loadDirectory().catch(() => []), loadContacts().catch(() => [])]);
+  const byId = new Map();
+  [...org, ...contacts].forEach((p) => byId.set(p.id, p));
+  return [...byId.values()].sort((a, b) => a.nom.localeCompare(b.nom));
+}
+const timeZone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return undefined; } };
+
 async function teamMemberIds(teamId) {
   const d = await api(`/classes/${teamId}`);
   return [d.responsable.id, ...d.membres.map((m) => m.id)];
 }
 
-/** Champ de recherche avec puces. source() renvoie la liste des personnes proposées. */
-function createPicker(root, source, onChange = () => {}) {
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Adresses e-mail contenues dans un texte collé (« a@x.dz, b@y.com; … »). */
+const emailsIn = (text) => [...new Set(String(text || '').split(/[\s,;<>()"']+/).map((x) => x.trim().toLowerCase()).filter((x) => EMAIL_RE.test(x)))];
+
+/**
+ * Champ de recherche avec puces. source() renvoie la liste des personnes proposées.
+ * { emails: true } : comme dans Meet et Teams, on peut aussi taper ou coller une ou plusieurs
+ * adresses e-mail (personnes avec ou sans compte Nadwa).
+ */
+function createPicker(root, source, onChange = () => {}, { emails = false } = {}) {
   const picker = { selected: new Map(), exclude: new Set(), people: [] };
+  const placeholder = t(emails ? 'rechercher_ou_email' : 'rechercher_personne');
   root.innerHTML = `
     <div class="choix-selection"></div>
-    <input type="search" class="choix-recherche" autocomplete="off" placeholder="${esc(t('rechercher_personne'))}" aria-label="${esc(t('rechercher_personne'))}">
+    <input type="search" class="choix-recherche" autocomplete="off" inputmode="email" placeholder="${esc(placeholder)}" aria-label="${esc(placeholder)}">
     <ul class="choix-resultats"></ul>`;
   const input = $('.choix-recherche', root);
   const results = $('.choix-resultats', root);
@@ -1678,24 +1701,63 @@ function createPicker(root, source, onChange = () => {}) {
   source().then((people) => { picker.people = people; renderResults(); }).catch(() => {});
 
   const renderChips = () => {
-    chips.innerHTML = [...picker.selected.values()].map((p) => `<span class="puce-personne">${esc(p.nom)}<button type="button" data-enlever="${p.id}" aria-label="${esc(t('retirer_nom', { nom: p.nom }))}">×</button></span>`).join('');
+    chips.innerHTML = [...picker.selected.entries()].map(([key, p]) => `<span class="puce-personne${p.email && !p.id ? ' puce-email' : ''}" title="${esc(p.email || '')}">${esc(p.nom)}<button type="button" data-enlever="${esc(key)}" aria-label="${esc(t('retirer_nom', { nom: p.nom }))}">×</button></span>`).join('');
     onChange();
+  };
+  /** Ajoute une adresse : la personne si elle est connue, sinon une puce « adresse e-mail ». */
+  const addEmail = (email) => {
+    const person = picker.people.find((p) => p.email.toLowerCase() === email);
+    if (person) {
+      if (!picker.exclude.has(person.id)) picker.selected.set(person.id, person);
+    } else if (![...picker.selected.values()].some((p) => p.email === email)) {
+      picker.selected.set(`e:${email}`, { id: null, nom: email, email });
+    }
+  };
+  /** Valide le texte tapé s'il contient des adresses e-mail (Entrée, virgule, collage, sortie du champ). */
+  const commitTyped = () => {
+    if (!emails) return false;
+    const found = emailsIn(input.value);
+    if (!found.length) return false;
+    found.forEach(addEmail);
+    input.value = '';
+    renderChips(); renderResults();
+    return true;
   };
   function renderResults() {
     if (document.activeElement !== input) { results.innerHTML = ''; return; }
     const q = input.value.trim().toLowerCase();
     const list = picker.people.filter((p) => !picker.selected.has(p.id) && !picker.exclude.has(p.id))
       .filter((p) => !q || p.nom.toLowerCase().includes(q) || p.email.toLowerCase().includes(q)).slice(0, 6);
-    results.innerHTML = list.length
-      ? list.map((p) => `<li><button type="button" data-choisir="${p.id}">${avatarP(p.id, p.nom, 'petit')}<span><strong>${esc(p.nom)}</strong><small dir="ltr">${esc(p.email)}</small></span></button></li>`).join('')
-      : `<li class="choix-vide">${t(picker.people.length ? 'aucune_personne' : 'aucun_contact')}</li>`;
+    const typed = emails ? emailsIn(q) : [];
+    const offerEmail = typed.length && !(typed.length === 1 && list.some((p) => p.email.toLowerCase() === typed[0]));
+    const emailItem = offerEmail
+      ? `<li><button type="button" data-choisir-email>${`<span class="avatar petit">@</span>`}<span><strong>${esc(typed.length > 1 ? t('inviter_n_adresses', { n: typed.length }) : t('inviter_adresse', { email: typed[0] }))}</strong><small>${t('invitation_par_email')}</small></span></button></li>`
+      : '';
+    const items = list.map((p) => `<li><button type="button" data-choisir="${p.id}">${avatarP(p.id, p.nom, 'petit')}<span><strong>${esc(p.nom)}</strong><small dir="ltr">${esc(p.email)}</small></span></button></li>`).join('');
+    if (emailItem || items) results.innerHTML = emailItem + items;
+    else if (emails && !q) results.innerHTML = picker.people.length ? '' : `<li class="choix-vide">${t('astuce_email')}</li>`;
+    else results.innerHTML = `<li class="choix-vide">${t(emails ? 'aucune_personne_email' : picker.people.length ? 'aucune_personne' : 'aucun_contact')}</li>`;
   }
-  input.addEventListener('input', renderResults);
+  input.addEventListener('input', () => {
+    // Une virgule, un point-virgule ou un espace après une adresse la valide tout de suite.
+    if (emails && /[,;\s]$/.test(input.value) && emailsIn(input.value).length) { commitTyped(); return; }
+    renderResults();
+  });
+  input.addEventListener('paste', () => setTimeout(() => { if (emailsIn(input.value).length > 1) commitTyped(); }, 0));
   input.addEventListener('focus', renderResults);
-  input.addEventListener('blur', () => setTimeout(renderResults, 150));
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('[data-choisir]', results)?.click(); } });
+  input.addEventListener('blur', () => setTimeout(() => { commitTyped(); renderResults(); }, 150));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (!commitTyped()) $('[data-choisir]', results)?.click();
+    } else if (e.key === 'Backspace' && !input.value && picker.selected.size) {
+      picker.selected.delete([...picker.selected.keys()].pop());
+      renderChips();
+    }
+  });
   results.addEventListener('mousedown', (e) => e.preventDefault());
   results.addEventListener('click', (e) => {
+    if (e.target.closest('[data-choisir-email]')) { commitTyped(); return; }
     const b = e.target.closest('[data-choisir]');
     if (!b) return;
     const person = picker.people.find((p) => p.id === Number(b.dataset.choisir));
@@ -1706,10 +1768,15 @@ function createPicker(root, source, onChange = () => {}) {
   chips.addEventListener('click', (e) => {
     const b = e.target.closest('[data-enlever]');
     if (!b) return;
-    picker.selected.delete(Number(b.dataset.enlever));
+    const key = b.dataset.enlever;
+    picker.selected.delete(key.startsWith('e:') ? key : Number(key));
     renderChips();
   });
-  picker.ids = () => [...picker.selected.keys()];
+  /** Avant l'envoi du formulaire : une adresse tapée mais pas encore validée compte aussi. */
+  picker.flush = () => { commitTyped(); };
+  picker.ids = () => [...picker.selected.keys()].filter((k) => typeof k === 'number');
+  picker.emails = () => [...picker.selected.values()].filter((p) => !p.id && p.email).map((p) => p.email);
+  picker.count = () => picker.selected.size;
   picker.setExclude = (ids) => { picker.exclude = new Set(ids); ids.forEach((id) => picker.selected.delete(id)); renderChips(); renderResults(); };
   return picker;
 }
@@ -1978,10 +2045,15 @@ async function loadParticipants(m) {
     zone.innerHTML = `
       <h3>${t('participants')}</h3>
       <p class="note">${esc(t('toute_equipe', { equipe: p.equipe.nom, n: p.equipe.membres.length }))}</p>
-      ${p.invites.length ? `<div class="choix-selection">${p.invites.map((x) => `<span class="puce-personne">${esc(x.nom)}${p.peutModifier ? `<button type="button" data-retirer-invite="${x.id}" aria-label="${esc(t('retirer_nom', { nom: x.nom }))}">×</button>` : ''}</span>`).join('')}</div>` : ''}
+      ${p.invites.length || p.externes?.length ? `<div class="choix-selection">${p.invites.map((x) => `<span class="puce-personne" title="${esc(x.email)}">${esc(x.nom)}${p.peutModifier ? `<button type="button" data-retirer-invite="${x.id}" aria-label="${esc(t('retirer_nom', { nom: x.nom }))}">×</button>` : ''}</span>`).join('')}${(p.externes || []).map((e) => `<span class="puce-personne puce-email" dir="ltr" title="${esc(t('invite_sans_compte_puce'))}">${esc(e)}${p.peutModifier ? `<button type="button" data-retirer-externe="${esc(e)}" aria-label="${esc(t('retirer_nom', { nom: e }))}">×</button>` : ''}</span>`).join('')}</div>` : ''}
+      ${!p.peutModifier && p.nbExternes ? `<p class="note">${esc(t('n_invites', { n: p.nbExternes }))}</p>` : ''}
       ${p.peutModifier ? `<button class="btn btn-contour a-gauche" id="btn-ajout-participants">${ICONES.inviter}<span>${t('ajouter_participants')}</span></button>` : ''}`;
     $$('[data-retirer-invite]', zone).forEach((b) => b.addEventListener('click', async () => {
       try { await api(`/seances/${m.id}/participants/${b.dataset.retirerInvite}`, { method: 'DELETE' }); loadParticipants(m); refreshMeetingViews(); }
+      catch (err) { toast(err.message); }
+    }));
+    $$('[data-retirer-externe]', zone).forEach((b) => b.addEventListener('click', async () => {
+      try { await api(`/seances/${m.id}/externes?email=${encodeURIComponent(b.dataset.retirerExterne)}`, { method: 'DELETE' }); loadParticipants(m); refreshMeetingViews(); }
       catch (err) { toast(err.message); }
     }));
     $('#btn-ajout-participants')?.addEventListener('click', () => openAddParticipants(m, p, () => loadParticipants(m)));
@@ -1996,13 +2068,15 @@ async function loadParticipants(m) {
 }
 
 function openAddParticipants(m, current, after) {
-  const picker = createPicker($('#choix-ajout'), loadDirectory);
+  const picker = createPicker($('#choix-ajout'), loadInvitables, () => {}, { emails: true });
   picker.setExclude([state.me.id, ...current.equipe.membres.map((x) => x.id), ...current.invites.map((x) => x.id)]);
   openDialog('dlg-participants', async () => {
+    picker.flush();
     const ids = picker.ids();
-    if (!ids.length) throw new Error(t('choisir_personne'));
-    await api(`/seances/${m.id}/participants`, { method: 'POST', body: { ids } });
-    toast(t('participants_ajoutes'));
+    const emails = picker.emails();
+    if (!ids.length && !emails.length) throw new Error(t('choisir_personne_email'));
+    await api(`/seances/${m.id}/participants`, { method: 'POST', body: { ids, emails, fuseau: timeZone() } });
+    toast(t('invitations_envoyees', { n: ids.length + emails.length }));
     after?.();
     refreshMeetingViews();
   });

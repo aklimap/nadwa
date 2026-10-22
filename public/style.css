@@ -414,6 +414,7 @@ fieldset.participants legend { padding: 0; margin-bottom: 4px; font-weight: 600;
 .choix-selection { display: flex; flex-wrap: wrap; gap: 6px; }
 .choix-selection:empty { display: none; }
 .puce-personne { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; padding-inline: 10px 4px; border-radius: 99px; background: var(--accent-pale); font-size: 13px; font-weight: 600; unicode-bidi: plaintext; }
+.puce-personne.puce-email { background: var(--surface-2); border: 1px dashed var(--ligne-2); font-weight: 500; }
 .puce-personne button { width: 22px; height: 22px; border: 0; border-radius: 50%; background: none; cursor: pointer; color: var(--encre-2); font-size: 16px; line-height: 1; }
 .puce-personne button:hover { background: rgba(0, 0, 0, .08); color: var(--encre); }
 .choix-resultats { list-style: none; margin: 0; padding: 4px; max-height: 220px; overflow-y: auto; border: 1.5px solid var(--ligne-2); border-radius: var(--r); }

@@ -44,14 +44,17 @@ function gabarit(langue, { titre, paragraphes, bouton, lien, pied }) {
 }
 
 /** Envoie un e-mail ; renvoie true si parti, false sinon (jamais d'exception vers l'appelant). */
-async function envoyer({ a, sujet, langue = 'en', ...contenu }) {
+async function envoyer({ a, sujet, langue = 'en', ics = null, ...contenu }) {
   const { html, texte } = gabarit(langue, contenu);
   if (!actif()) {
     console.log(`[e-mail non envoyé : SMTP non configuré] À : ${a}\nSujet : ${sujet}\n${texte}\n`);
     return false;
   }
   try {
-    await transporteur().sendMail({ from: config.smtp.from, to: a, subject: sujet, text: texte, html });
+    const message = { from: config.smtp.from, to: a, subject: sujet, text: texte, html };
+    // Événement d'agenda (.ics) : Gmail, Outlook et les téléphones proposent « Ajouter à l'agenda ».
+    if (ics) message.icalEvent = { filename: 'invitation.ics', method: 'PUBLISH', content: ics };
+    await transporteur().sendMail(message);
     return true;
   } catch (err) {
     console.error('Échec de l\'envoi de l\'e-mail :', err.message);
@@ -129,4 +132,47 @@ function motDePasseChange({ email, nom, langue }) {
   });
 }
 
-module.exports = { actif, envoyer, bienvenue, verification, compteCree, ajoutOrganisation, reinitialisation, motDePasseChange };
+// ---------- Invitation à une réunion ----------
+const icsTexte = (v) => String(v ?? '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+const icsDate = (d) => new Date(d).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+
+/** Fichier d'agenda d'une réunion (heure en UTC : chaque agenda l'affiche à l'heure locale). */
+function icsReunion({ uid, titre, debut, dureeMin, lien, description }) {
+  const fin = new Date(Date.parse(debut) + dureeMin * 60_000);
+  return [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Nadwa//Reunions//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTAMP:${icsDate(new Date())}`,
+    `DTSTART:${icsDate(debut)}`,
+    `DTEND:${icsDate(fin)}`,
+    `SUMMARY:${icsTexte(titre)}`,
+    `DESCRIPTION:${icsTexte(description)}`,
+    `LOCATION:${icsTexte(lien)}`,
+    `URL:${lien}`,
+    'END:VEVENT', 'END:VCALENDAR', '',
+  ].join('\r\n');
+}
+
+/**
+ * Invitation à une réunion. quand = date et heure déjà mises en forme (fuseau de l'organisateur).
+ * sansCompte : la personne n'a pas de compte Nadwa (elle entre avec son nom par le lien).
+ */
+function invitationReunion({ email, langue, titre, organisateur, quand, lien, sansCompte, seanceId, debut, dureeMin }) {
+  const paragraphes = [
+    t(langue, 'mail_invit_texte', { nom: organisateur, titre }),
+    t(langue, 'mail_invit_quand', { quand }),
+    t(langue, sansCompte ? 'mail_invit_sans_compte' : 'mail_invit_compte'),
+  ];
+  return envoyer({
+    a: email, langue,
+    sujet: t(langue, 'mail_invit_sujet', { titre }),
+    titre,
+    paragraphes,
+    bouton: t(langue, 'mail_invit_rejoindre'), lien,
+    pied: t(langue, 'mail_invit_pied'),
+    ics: icsReunion({ uid: `reunion-${seanceId}@nadwalive.com`, titre, debut, dureeMin, lien, description: `${paragraphes[0]}\n${lien}` }),
+  });
+}
+
+module.exports = { actif, envoyer, invitationReunion, bienvenue, verification, compteCree, ajoutOrganisation, reinitialisation, motDePasseChange };

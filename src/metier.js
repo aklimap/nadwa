@@ -91,15 +91,16 @@ const avecEtat = (seance) => ({ ...seance, etat: etatSeance(seance) });
 
 /** Requête des réunions avec le nom de l'organisateur et de l'équipe. */
 const SQL_SEANCE = `
-  SELECT s.*, o.nom AS organisateur_nom, c.nom AS classe_nom, c.responsable_id,
-         (SELECT COUNT(*) FROM seance_invites i WHERE i.seance_id = s.id) AS nb_invites
+  SELECT s.*, o.nom AS organisateur_nom, c.nom AS classe_nom, c.responsable_id, c.espace_id,
+         (SELECT COUNT(*) FROM seance_invites i WHERE i.seance_id = s.id)
+           + (SELECT COUNT(*) FROM seance_invites_externes x WHERE x.seance_id = s.id) AS nb_invites
   FROM seances s
   JOIN classes c ON c.id = s.classe_id
   LEFT JOIN utilisateurs o ON o.id = s.organisateur_id`;
 
 /**
- * Accès à une réunion : membres de l'équipe, ou personnes invitées (toujours membres de l'organisation).
- * Renvoie { seance, classe, accesEquipe } ou null.
+ * Accès à une réunion : membres de l'équipe, ou personnes invitées. Comme dans Teams et Meet,
+ * l'invitation suffit : une personne invitée n'a pas besoin d'être dans l'organisation.
  */
 function seanceAccessible(utilisateur, seanceId) {
   const seance = db.prepare('SELECT * FROM seances WHERE id = ?').get(seanceId);
@@ -108,17 +109,53 @@ function seanceAccessible(utilisateur, seanceId) {
   if (classeEquipe) return { seance, classe: classeEquipe, accesEquipe: true };
   const classe = db.prepare('SELECT c.*, u.nom AS responsable_nom FROM classes c JOIN utilisateurs u ON u.id = c.responsable_id WHERE c.id = ?').get(seance.classe_id);
   const invite = db.prepare('SELECT 1 FROM seance_invites WHERE seance_id = ? AND utilisateur_id = ?').get(seance.id, utilisateur.id);
-  if (!invite || !roleDansEspace(utilisateur, classe.espace_id)) return null;
+  if (!invite || !classe) return null;
   return { seance, classe, accesEquipe: false };
 }
 
-/** Ajoute des invités ; ne garde que des membres de l'organisation. Renvoie les identifiants ajoutés. */
-function ajouterInvites(seance, espaceId, ids) {
-  const membreOrg = db.prepare('SELECT 1 FROM adhesions WHERE espace_id = ? AND utilisateur_id = ?');
-  const inserer = db.prepare('INSERT OR IGNORE INTO seance_invites (seance_id, utilisateur_id) VALUES (?, ?)');
-  const valides = [...new Set((Array.isArray(ids) ? ids : []).map(Number))].filter((id) => membreOrg.get(espaceId, id));
-  db.transaction(() => valides.forEach((id) => inserer.run(seance.id, id)))();
-  return valides;
+const MAX_INVITES = 300;
+
+/** Adresses e-mail valides et distinctes, à partir d'une liste ou d'un texte collé (« a@x.dz, b@y.com; … »). */
+function emailsValides(entree) {
+  const brut = Array.isArray(entree) ? entree.join(' ') : String(entree ?? '');
+  const trouves = brut.split(/[\s,;<>()"']+/).map((e) => e.trim().toLowerCase()).filter((e) => e && EMAIL.test(e) && e.length <= 254);
+  return [...new Set(trouves)].slice(0, MAX_INVITES);
+}
+
+/**
+ * Ajoute des invités à une réunion, comme dans Teams et Meet.
+ * - ids : comptes Nadwa proposés dans le champ (personnes de l'organisation ou contacts de l'organisateur) ;
+ * - emails : n'importe quelle adresse. Une adresse qui a un compte Nadwa devient un invité « compte »
+ *   (la réunion apparaît dans son agenda) ; sinon c'est un invité externe, qui reçoit le lien par e-mail.
+ * Renvoie { ids, emails } : les comptes et les adresses externes réellement ajoutés (nouveaux).
+ */
+function ajouterInvites(seance, classe, utilisateur, { ids = [], emails = [] } = {}) {
+  const autorises = new Set(contactsDe(utilisateur).map((c) => c.id));
+  db.prepare('SELECT utilisateur_id AS id FROM adhesions WHERE espace_id = ?').all(classe.espace_id).forEach((m) => autorises.add(m.id));
+  const dejaEquipe = new Set(db.prepare('SELECT utilisateur_id AS id FROM membres WHERE classe_id = ?').all(classe.id).map((m) => m.id));
+  dejaEquipe.add(classe.responsable_id);
+  dejaEquipe.add(utilisateur.id);
+
+  const parEmail = db.prepare('SELECT id FROM utilisateurs WHERE email = ?');
+  const comptes = new Set((Array.isArray(ids) ? ids : []).map(Number).filter((id) => Number.isInteger(id) && autorises.has(id)));
+  const externes = [];
+  for (const email of emailsValides(emails)) {
+    const compte = parEmail.get(email);
+    if (compte) comptes.add(compte.id);
+    else externes.push(email);
+  }
+
+  const insererCompte = db.prepare('INSERT OR IGNORE INTO seance_invites (seance_id, utilisateur_id) VALUES (?, ?)');
+  const insererExterne = db.prepare('INSERT OR IGNORE INTO seance_invites_externes (seance_id, email) VALUES (?, ?)');
+  const ajoutes = { ids: [], emails: [] };
+  db.transaction(() => {
+    for (const id of comptes) {
+      if (dejaEquipe.has(id)) continue; // déjà dans l'équipe : la réunion est déjà dans son agenda
+      if (insererCompte.run(seance.id, id).changes) ajoutes.ids.push(id);
+    }
+    for (const email of externes) if (insererExterne.run(seance.id, email).changes) ajoutes.emails.push(email);
+  })();
+  return ajoutes;
 }
 
 /** Anime la réunion : l'organisateur, le propriétaire de l'équipe ou un administrateur. */
@@ -271,6 +308,7 @@ module.exports = {
   clavardageEquipe,
   seanceAccessible,
   ajouterInvites,
+  emailsValides,
   nouveauCodeInvitation,
   nouveauCodeEspace,
   nouvelIdReunion,

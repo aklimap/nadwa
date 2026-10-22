@@ -4,7 +4,7 @@ const express = require('express');
 const config = require('../config');
 const db = require('../db');
 const { exigerConnexion } = require('../auth');
-const { t } = require('../i18n');
+const { t, langueDe } = require('../i18n');
 const {
   roleDansEspace, classeAccessible, estResponsable, classePourUtilisateur, avecEtat,
   nouveauCodeInvitation, nouvelIdReunion, OUVERTURE_AVANT_MIN,
@@ -181,10 +181,15 @@ routeur.post('/:id/seances', (req, res) => {
   const { lastInsertRowid } = db.prepare(`
     INSERT INTO seances (classe_id, titre, debut, duree_min, reunion_id, organisateur_id)
     VALUES (?, ?, ?, ?, ?, ?)`).run(classe.id, titre, debut.toISOString(), duree, nouvelIdReunion(classe.id), req.utilisateur.id);
-  const invites = ajouterInvites({ id: lastInsertRowid }, classe.espace_id, req.body?.participants);
-  jetonInvite(lastInsertRowid);
+  const seance = db.prepare('SELECT * FROM seances WHERE id = ?').get(lastInsertRowid);
+  // Invités : comptes choisis dans la liste et/ou adresses e-mail saisies (avec ou sans compte Nadwa).
+  const ajoutes = ajouterInvites(seance, classe, req.utilisateur, { ids: req.body?.participants, emails: req.body?.emails });
+  const jeton = jetonInvite(seance.id);
+  require('../notifications').invitationReunion({
+    seance, organisateur: req.utilisateur, ...ajoutes, jeton, fuseau: req.body?.fuseau, langue: langueDe(req),
+  });
 
-  annoncerSeances(req, classe.id, invites);
+  annoncerSeances(req, classe.id, ajoutes.ids);
   res.status(201).json(avecEtat(db.prepare(`${SQL_SEANCE} WHERE s.id = ?`).get(lastInsertRowid)));
 });
 

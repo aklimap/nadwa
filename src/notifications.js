@@ -140,6 +140,51 @@ function publication(message) {
   } catch (err) { console.error('Notification de publication :', err.message); }
 }
 
+// ---------- Invitation à une réunion ----------
+const FUSEAU_DEFAUT = 'Africa/Algiers';
+const LOCALES = { en: 'en-GB', fr: 'fr-FR', ar: 'ar-DZ' };
+function fuseauValide(fuseau) {
+  try { new Intl.DateTimeFormat('en', { timeZone: fuseau }); return fuseau; } catch { return FUSEAU_DEFAUT; }
+}
+/** « jeudi 23 octobre 2026, 14:00 – 15:00 (Africa/Algiers) », dans le fuseau de l'organisateur. */
+function quandReunion(seance, langue, fuseau) {
+  const tz = fuseauValide(fuseau || FUSEAU_DEFAUT);
+  const debut = new Date(seance.debut);
+  const fin = new Date(debut.getTime() + seance.duree_min * 60_000);
+  const jour = new Intl.DateTimeFormat(LOCALES[langue] || 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: tz }).format(debut);
+  const heure = new Intl.DateTimeFormat(LOCALES[langue] || 'en-GB', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+  return `${jour}, ${heure.format(debut)} – ${heure.format(fin)} (${tz.replace(/_/g, ' ')})`;
+}
+
+/**
+ * Prévient les personnes qu'on vient d'inviter (comme l'invitation de Teams ou Meet) :
+ * - comptes Nadwa : notification sur le téléphone et e-mail d'invitation avec le fichier d'agenda ;
+ * - adresses sans compte : e-mail avec le lien de la réunion (entrée avec son nom, sans compte).
+ */
+function invitationReunion({ seance, organisateur, ids = [], emails = [], fuseau, jeton, langue: langueOrg = 'en' }) {
+  try {
+    const lienInvite = `${urlBase()}/r/${jeton}`;
+    const envoi = (email, langue, sansCompte, lien) => mail.invitationReunion({
+      email, langue, titre: seance.titre, organisateur: organisateur.nom, quand: quandReunion(seance, langue, fuseau),
+      lien, sansCompte, seanceId: seance.id, debut: seance.debut, dureeMin: seance.duree_min,
+    });
+    if (ids.length) {
+      const personnes = db.prepare(`${SQL_PERSONNE} WHERE id IN (${ids.map(() => '?').join(',')})`).all(...ids);
+      for (const d of personnes) {
+        const langue = d.langue || 'en';
+        const chemin = `/?reunion=${seance.id}`;
+        prevenir(d, {
+          titre: t(langue, 'notif_invit', { nom: organisateur.nom }),
+          texte: `${seance.titre} — ${quandReunion(seance, langue, fuseau)}`,
+          chemin, tag: `invit-${seance.id}`, bouton: t(langue, 'notif_voir_reunion'), toujours: true, email: false,
+        });
+        if (d.notif_email && d.email) envoi(d.email, langue, false, `${urlBase()}${chemin}`);
+      }
+    }
+    for (const email of emails) envoi(email, langueOrg, true, lienInvite);
+  } catch (err) { console.error("Invitation à une réunion :", err.message); }
+}
+
 // ---------- Rappels de réunion ----------
 function envoyerRappels() {
   try {
@@ -159,9 +204,22 @@ function envoyerRappels() {
         prevenir(d, {
           titre: t(langue, 'notif_rappel', { titre: s.titre, min: minutes }),
           texte: t(langue, 'notif_rappel_texte', { equipe: s.classe_nom }),
-          chemin: `/?equipe=${s.classe_id}&reunion=${s.id}`,
+          chemin: `/?reunion=${s.id}`,
           tag: `reunion-${s.id}`, bouton: t(langue, 'notif_voir_reunion'), toujours: true,
         });
+      }
+      // Invités sans compte : rappel par e-mail avec le lien de la réunion.
+      const externes = db.prepare('SELECT email FROM seance_invites_externes WHERE seance_id = ?').all(s.id);
+      if (externes.length && s.jeton_invite) {
+        const le = db.prepare('SELECT langue FROM utilisateurs WHERE id = ?').get(s.organisateur_id)?.langue || 'en';
+        for (const { email } of externes) {
+          mail.envoyer({
+            a: email, langue: le, sujet: t(le, 'notif_rappel', { titre: s.titre, min: minutes }),
+            titre: t(le, 'notif_rappel', { titre: s.titre, min: minutes }),
+            paragraphes: [t(le, 'mail_invit_sans_compte')],
+            bouton: t(le, 'mail_invit_rejoindre'), lien: `${urlBase()}/r/${s.jeton_invite}`,
+          });
+        }
       }
     }
   } catch (err) { console.error('Rappels de réunion :', err.message); }
@@ -172,4 +230,4 @@ function demarrerRappels() {
   setInterval(envoyerRappels, 60_000).unref();
 }
 
-module.exports = { clePublique, abonner, desabonner, messageDirect, publication, demarrerRappels, envoyerRappels, pousser };
+module.exports = { clePublique, abonner, desabonner, messageDirect, publication, invitationReunion, demarrerRappels, envoyerRappels, pousser };

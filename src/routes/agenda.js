@@ -21,8 +21,10 @@ routeur.get('/', exigerConnexion, (req, res) => {
   const au = new Date(req.query.au);
   const periode = !Number.isNaN(du.getTime()) && !Number.isNaN(au.getTime()) && au > du && au - du <= 62 * 864e5;
 
-  const conditions = ['c.espace_id = ?'];
-  const valeurs = [espaceId];
+  // Réunions de l'organisation, plus celles où la personne est invitée (même d'une autre organisation,
+  // comme dans l'agenda de Teams).
+  const conditions = [];
+  const valeurs = [];
   if (periode) {
     // Inclut une réunion commencée la veille au soir qui déborde sur la période.
     conditions.push('s.debut >= ? AND s.debut < ?');
@@ -31,17 +33,21 @@ routeur.get('/', exigerConnexion, (req, res) => {
     conditions.push('s.debut >= ?');
     valeurs.push(new Date(Date.now() - 6 * 3600_000).toISOString());
   }
+  const invite = 's.id IN (SELECT seance_id FROM seance_invites WHERE utilisateur_id = ?)';
   if (role !== 'admin') {
-    conditions.push(`(c.responsable_id = ? OR c.id IN (SELECT classe_id FROM membres WHERE utilisateur_id = ?)
-      OR s.id IN (SELECT seance_id FROM seance_invites WHERE utilisateur_id = ?))`);
-    valeurs.push(u.id, u.id, u.id);
+    conditions.push(`((c.espace_id = ? AND (c.responsable_id = ? OR c.id IN (SELECT classe_id FROM membres WHERE utilisateur_id = ?))) OR ${invite})`);
+    valeurs.push(espaceId, u.id, u.id, u.id);
+  } else {
+    conditions.push(`(c.espace_id = ? OR ${invite})`);
+    valeurs.push(espaceId, u.id);
   }
 
   // acces_equipe = 0 : la personne est seulement invitée (elle ne voit pas l'équipe).
   const lignes = db.prepare(`
-    SELECT x.*, (x.responsable_id = ? OR x.classe_id IN (SELECT classe_id FROM membres WHERE utilisateur_id = ?) OR ? = 'admin') AS acces_equipe
+    SELECT x.*, (x.responsable_id = ? OR x.classe_id IN (SELECT classe_id FROM membres WHERE utilisateur_id = ?)
+      OR (? = 'admin' AND x.espace_id = ?)) AS acces_equipe
     FROM (${SQL_SEANCE} WHERE ${conditions.join(' AND ')} ORDER BY s.debut LIMIT 500) x`)
-    .all(u.id, u.id, role, ...valeurs).map(avecEtat);
+    .all(u.id, u.id, role, espaceId, ...valeurs).map(avecEtat);
   res.json(periode ? lignes : lignes.filter((s) => s.etat !== 'terminee'));
 });
 

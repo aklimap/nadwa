@@ -270,4 +270,14 @@ if (!colonnes('utilisateurs').includes('conditions_version')) db.exec('ALTER TAB
 if (!colonnes('utilisateurs').includes('hebergement_accepte_le')) db.exec('ALTER TABLE utilisateurs ADD COLUMN hebergement_accepte_le TEXT');
 if (!colonnes('seances').includes('ouverte_le')) db.exec('ALTER TABLE seances ADD COLUMN ouverte_le TEXT');
 
+// Invités sans compte Nadwa, ajoutés par leur adresse e-mail (reçoivent le lien de la réunion).
+db.exec(`
+CREATE TABLE IF NOT EXISTS seance_invites_externes (
+  seance_id  INTEGER NOT NULL REFERENCES seances(id) ON DELETE CASCADE,
+  email      TEXT NOT NULL,
+  cree_le    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  PRIMARY KEY (seance_id, email)
+);
+`);
+
 module.exports = db;
