@@ -628,3 +628,15 @@ fieldset.participants legend { padding: 0; margin-bottom: 4px; font-weight: 600;
 .attente-anneau { width: 44px; height: 44px; border-radius: 50%; border: 4px solid var(--accent-pale, #dfe6fb); border-top-color: var(--accent, #2F5BEA); animation: attente-tour 1s linear infinite; }
 @keyframes attente-tour { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .attente-anneau, .attente-carte { animation: none; } }
+
+/* Test du micro (écran « Prêt à rejoindre ») */
+.test-micro { display: grid; gap: 8px; justify-items: center; min-height: 28px; margin: 4px 0 2px; text-align: center; }
+.test-micro-ligne { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.niveau-micro { --niveau: 0; position: relative; width: 140px; height: 8px; border-radius: 99px; background: var(--ligne-2, #d0d5dd); overflow: hidden; }
+.niveau-micro > span { position: absolute; inset-block: 0; inset-inline-start: 0; width: calc(var(--niveau) * 100%); border-radius: inherit; background: #12B76A; transition: width .06s linear; }
+.test-micro-etat { margin: 0; font-size: 13px; color: var(--encre-2); }
+.test-micro-etat.ok { color: #067647; font-weight: 700; }
+.test-micro-etat.ok::before { content: '✓ '; }
+.test-micro-erreur { margin: 0; max-width: 520px; font-size: 13px; color: var(--danger, #B42318); font-weight: 600; }
+.test-micro-choix { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--encre-2); }
+.test-micro-choix select { max-width: 260px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--ligne-2); background: var(--surface); color: var(--encre); font: inherit; }

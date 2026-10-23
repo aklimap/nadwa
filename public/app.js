@@ -435,7 +435,12 @@ async function openFromLink(url) {
   const reunionSeule = Number(p.get('reunion')) || null;
   if (!conv && !equipe && !reunionSeule) return;
   history.replaceState(null, '', '/');
-  if (!conv && reunionSeule) { showPrejoin(reunionSeule); return; }
+  if (!conv && reunionSeule) {
+    // Déjà dans la visio (clic sur « X attend dans la salle d'attente ») : on reste dans la réunion.
+    if (visio.api) { loadLobby(); return; }
+    showPrejoin(reunionSeule);
+    return;
+  }
   try {
     if (conv) {
       await loadConversations();
@@ -568,9 +573,10 @@ function connectSocket() {
   state.socket = socket;
   socket.on('connect', () => { if (state.teamId) socket.emit('classe:rejoindre', state.teamId); loadLobby(); });
   socket.on('salle:demande', (d) => {
+    const nouvelle = !attente.has(d.id);
     attente.set(d.id, d);
     renderLobby();
-    lobbyChime();
+    if (nouvelle) { lobbyChime(); alertLobby(d); }
   });
   socket.on('salle:maj', ({ id, seance_id, tout }) => {
     if (tout) [...attente.values()].filter((d) => d.seance_id === seance_id).forEach((d) => attente.delete(d.id));
@@ -1183,6 +1189,104 @@ const prejoin = { mode: null, id: null, jeton: null, info: null, micro: true, ca
 function stopPreview() {
   prejoin.flux?.getTracks().forEach((tr) => tr.stop());
   prejoin.flux = null;
+  stopMicTest();
+}
+
+// ---------- Test du micro avant d'entrer (comme Teams) ----------
+// Le niveau bouge quand on parle ; on peut choisir le micro ; un message clair dit quoi faire
+// s'il est bloqué, absent ou pris par une autre application. Le micro choisi est ensuite
+// utilisé dans la visio. Rien n'est envoyé : le son reste sur l'appareil.
+const micTest = { flux: null, ctx: null, source: null, analyseur: null, raf: null, erreur: null, appareils: [], choisi: null, entendu: false, demarrage: null };
+
+async function startMicTest() {
+  if (micTest.flux) return;
+  if (micTest.demarrage) return micTest.demarrage;
+  micTest.demarrage = (async () => {
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) throw Object.assign(new Error('https'), { name: 'Insecure' });
+      const audio = micTest.choisi ? { deviceId: { exact: micTest.choisi }, echoCancellation: true, noiseSuppression: true } : { echoCancellation: true, noiseSuppression: true };
+      const flux = await navigator.mediaDevices.getUserMedia({ audio, video: false });
+      if (!prejoin.micro || !$('#ecran-reunion') || $('#ecran-reunion').hidden) { flux.getTracks().forEach((tr) => tr.stop()); return; }
+      const piste = flux.getAudioTracks()[0];
+      Object.assign(micTest, { flux, erreur: null, entendu: false });
+      micTest.choisi = piste?.getSettings?.().deviceId || micTest.choisi;
+      prejoin.micLabel = piste?.label || null;
+      piste?.addEventListener('ended', () => { stopMicTest(); micTest.erreur = 'NotReadableError'; renderMicCheck(); });
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) {
+        micTest.ctx ||= new Ctx();
+        micTest.ctx.resume?.().catch(() => {});
+        micTest.source = micTest.ctx.createMediaStreamSource(flux);
+        micTest.analyseur = micTest.ctx.createAnalyser();
+        micTest.analyseur.fftSize = 1024;
+        micTest.source.connect(micTest.analyseur);
+        meterLoop();
+      }
+      micTest.appareils = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput' && d.deviceId && d.deviceId !== 'communications');
+    } catch (err) {
+      micTest.erreur = err.name || 'Error';
+    } finally {
+      micTest.demarrage = null;
+      renderMicCheck();
+    }
+  })();
+  return micTest.demarrage;
+}
+
+function stopMicTest() {
+  cancelAnimationFrame(micTest.raf);
+  micTest.raf = null;
+  try { micTest.source?.disconnect(); } catch { /* déjà débranché */ }
+  micTest.flux?.getTracks().forEach((tr) => tr.stop());
+  Object.assign(micTest, { flux: null, source: null, analyseur: null });
+}
+
+function meterLoop() {
+  const an = micTest.analyseur;
+  if (!an) return;
+  const donnees = new Uint8Array(an.fftSize);
+  let lisse = 0;
+  const tour = () => {
+    if (!micTest.analyseur) return;
+    an.getByteTimeDomainData(donnees);
+    let somme = 0;
+    for (const v of donnees) { const x = (v - 128) / 128; somme += x * x; }
+    const niveau = Math.min(1, Math.sqrt(somme / donnees.length) * 4);
+    lisse = Math.max(niveau, lisse * 0.85);
+    const barre = $('#niveau-micro');
+    if (barre) barre.style.setProperty('--niveau', lisse.toFixed(3));
+    if (!micTest.entendu && niveau > 0.12) { micTest.entendu = true; renderMicCheck(); }
+    micTest.raf = requestAnimationFrame(tour);
+  };
+  tour();
+}
+
+// Une page ouverte sans clic (lien d'invitation) : le niveau du micro démarre au premier geste.
+addEventListener('pointerdown', () => { if (micTest.ctx?.state === 'suspended') micTest.ctx.resume().catch(() => {}); }, { passive: true });
+
+const MESSAGES_MICRO = { NotAllowedError: 'micro_bloque', SecurityError: 'micro_bloque', NotFoundError: 'micro_absent', OverconstrainedError: 'micro_absent', NotReadableError: 'micro_occupe', AbortError: 'micro_occupe', Insecure: 'micro_https' };
+
+function renderMicCheck() {
+  const zone = $('#test-micro');
+  if (!zone) return;
+  if (!prejoin.micro) { zone.innerHTML = `<p class="test-micro-etat">${t('micro_coupe_note')}</p>`; return; }
+  if (micTest.erreur) {
+    zone.innerHTML = `<p class="test-micro-erreur" role="alert">${esc(t(MESSAGES_MICRO[micTest.erreur] || 'micro_erreur'))}</p>
+      <button type="button" class="btn btn-contour btn-petit" id="micro-reessayer">${t('reessayer')}</button>`;
+    $('#micro-reessayer').addEventListener('click', () => { micTest.erreur = null; micTest.choisi = null; renderMicCheck(); startMicTest(); });
+    return;
+  }
+  if (!micTest.flux) { zone.innerHTML = `<p class="test-micro-etat">${t('micro_verification')}</p>`; return; }
+  const choix = micTest.appareils.length > 1 ? `
+    <label class="test-micro-choix"><span>${t('micro_choisir')}</span>
+      <select id="micro-appareil">${micTest.appareils.map((d, i) => `<option value="${esc(d.deviceId)}"${d.deviceId === micTest.choisi ? ' selected' : ''}>${esc(d.label || `${t('micro')} ${i + 1}`)}</option>`).join('')}</select>
+    </label>` : '';
+  zone.innerHTML = `
+    <div class="test-micro-ligne">
+      <span class="niveau-micro" id="niveau-micro" role="meter" aria-label="${esc(t('niveau_micro'))}" aria-valuemin="0" aria-valuemax="1"><span></span></span>
+      <span class="test-micro-etat${micTest.entendu ? ' ok' : ''}">${t(micTest.entendu ? 'micro_ok' : 'micro_parlez')}</span>
+    </div>${choix}`;
+  $('#micro-appareil')?.addEventListener('change', (e) => { stopMicTest(); micTest.choisi = e.target.value; startMicTest(); });
 }
 
 /** Écran « prêt à rejoindre » pour un membre (réunion d'une équipe ou réunion où il est invité). */
@@ -1257,6 +1361,7 @@ function renderPrejoin() {
             ${me ? avatar(me.id, me.nom) : `<span class="avatar">${ICONES.profil}</span>`}
             <span class="apercu-etiquette">${t(prejoin.camera ? 'camera_on' : 'camera_desactivee')}</span>
           </div>
+          <div class="test-micro" id="test-micro" aria-live="polite"></div>
           <div class="reglages">
             <button type="button" class="reglage" id="reglage-micro" aria-pressed="${prejoin.micro}">${prejoin.micro ? ICONES.micro : ICONES.microOff}<span>${t(prejoin.micro ? 'micro_on' : 'micro_off')}</span></button>
             <button type="button" class="reglage" id="reglage-camera" aria-pressed="${prejoin.camera}">${prejoin.camera ? ICONES.video : ICONES.videoOff}<span>${t(prejoin.camera ? 'camera_on' : 'camera_off')}</span></button>
@@ -1280,7 +1385,13 @@ function renderPrejoin() {
     </div>`;
   $('#avant-contenu h1').textContent = m.titre;
   if (prejoin.flux) attachPreview();
-  $('#reglage-micro').addEventListener('click', () => { prejoin.micro = !prejoin.micro; renderPrejoin(); });
+  $('#reglage-micro').addEventListener('click', () => {
+    prejoin.micro = !prejoin.micro;
+    if (!prejoin.micro) stopMicTest();
+    renderPrejoin();
+  });
+  renderMicCheck();
+  if (prejoin.micro && m.etat !== 'terminee') startMicTest();
   $('#reglage-camera').addEventListener('click', toggleCamera);
   $('#avant-ajout')?.addEventListener('click', () => openAddParticipants({ id: prejoin.id }, { equipe: { membres: m.membres }, invites: m.invites }, () => showPrejoin(prejoin.id)));
   const form = $('#form-rejoindre');
@@ -1351,6 +1462,8 @@ async function openVisio(reponse, { titre = '', etat = null, seanceId = null, re
     height: '100%',
     lang: window.NADWA_LANGUE,
     userInfo: { displayName: v.nom },
+    // Le micro testé avant d'entrer est celui de la visio.
+    ...(prejoin.micLabel && v.micro ? { devices: { audioInput: prejoin.micLabel } } : {}),
     configOverwrite: {
       startWithAudioMuted: !v.micro,
       startWithVideoMuted: !v.camera,
@@ -1458,6 +1571,7 @@ async function openMeetingInvite() {
   });
 }
 $('#visio-inviter').addEventListener('click', openMeetingInvite);
+$('#visio-attente').addEventListener('click', () => { if (!attente.size) loadLobby(); renderLobby(); $('#salle-attente [data-decision="admettre"]')?.focus(); });
 $('#iv-copier').addEventListener('click', () => copy($('#iv-lien').value, 'lien_copie'));
 $('#visio-terminer').addEventListener('click', async () => {
   const id = visio.seanceId;
@@ -1560,6 +1674,7 @@ function renderLobby() {
   (dlg || document.body).append(zone);
   const liste = [...attente.values()];
   zone.hidden = !liste.length;
+  updateLobbyBadge();
   zone.innerHTML = `
     ${liste.length > 1 ? `<div class="attente-entete"><strong>${esc(t('attente_n', { n: liste.length }))}</strong><button class="btn btn-accent btn-petit" data-decision="admettre" data-demande="*">${t('admettre_tous')}</button></div>` : ''}
     ${liste.slice(0, 5).map((d) => `
@@ -1572,6 +1687,34 @@ function renderLobby() {
         </div>
       </div>`).join('')}`;
 }
+/**
+ * Nouvelle demande : comme Teams, on prévient même si Nadwa n'est pas au premier plan —
+ * notification du système (même étiquette que la notification push : pas de doublon),
+ * titre de l'onglet, et sortie du plein écran de la visio pour que la carte se voie.
+ */
+async function alertLobby(d) {
+  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  if (!document.hidden && document.hasFocus()) return;
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const reg = await swPret;
+    const titre = t('attend_salle', { nom: d.nom });
+    if (reg?.showNotification) await reg.showNotification(titre, { body: d.titre || '', tag: `salle-${d.id}`, renotify: true, icon: '/icones/icone-192.png', badge: '/icones/badge-96.png', data: { url: `/?reunion=${d.seance_id}` }, requireInteraction: true });
+    else new Notification(titre, { body: d.titre || '', tag: `salle-${d.id}` });
+  } catch { /* notifications indisponibles */ }
+}
+const titreBase = document.title;
+function updateLobbyBadge() {
+  const n = attente.size;
+  const premier = [...attente.values()][0];
+  document.title = n ? `(${n}) ${n === 1 ? t('attend_salle', { nom: premier.nom }) : t('attente_n', { n })} · ${titreBase}` : titreBase;
+  const b = $('#visio-attente');
+  if (b) { b.hidden = !n; $('span', b).textContent = t('salle_attente_n', { n }); }
+}
+// Filet de sécurité : si un événement en direct se perd (connexion qui saute), on revérifie.
+setInterval(() => { if (state.me && !document.hidden) loadLobby(); }, 10_000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && state.me) loadLobby(); });
+
 function lobbyChime() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1587,15 +1730,21 @@ function lobbyChime() {
 async function loadLobby() {
   try {
     const liste = await api('/seances/salle-attente');
+    const nouvelles = liste.filter((d) => !attente.has(d.id));
     attente.clear();
     liste.forEach((d) => attente.set(d.id, d));
     renderLobby();
+    if (nouvelles.length && state.lobbyCharge) { lobbyChime(); nouvelles.forEach(alertLobby); }
+    state.lobbyCharge = true;
   } catch { /* sans incidence */ }
 }
 new MutationObserver(() => { if (attente.size) renderLobby(); })
   .observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
 
 async function joinNow(form) {
+  if (prejoin.mode !== 'invite' && prejoin.info && canHost(prejoin.info) && 'Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission().catch(() => {});
+  }
   const button = $('[type=submit]', form);
   button.disabled = true;
   $('.erreur', form).textContent = '';

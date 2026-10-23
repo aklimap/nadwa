@@ -98,6 +98,7 @@ const serveur = http.createServer(app);
 const io = new Server(serveur);
 app.set('io', io);
 brancherTempsReel(io);
+require('./src/salle-attente').brancher(io); // salle d'attente : prévient les hôtes quand une demande expire
 
 require('./src/notifications').demarrerRappels(); // rappels de réunion 30 min avant
 
