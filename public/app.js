@@ -1481,7 +1481,7 @@ async function openVisio(reponse, { titre = '', etat = null, seanceId = null, re
   });
   Object.assign(visio, { api, etat, seanceId, ref, inviteId, debut: Date.now(), timer: etat ? setInterval(checkVisio, 10_000) : null });
   state.socket?.emit('presence:reunion', v.salle);
-  surveillerMedias(api, { seanceId: ref?.seance_id || null, jeton: prejoin.mode === 'invite' ? prejoin.jeton : null, nom: v.nom });
+  surveillerMedias(api, { seanceId: ref?.seance_id || null, jeton: prejoin.mode === 'invite' ? prejoin.jeton : null, nom: v.nom, avecJeton: Boolean(v.jwt) });
   // Raccrocher dans la visio, ou être exclu quand l'organisateur termine : retour à Nadwa.
   api.addListener('videoConferenceLeft', () => closeVisio());
   api.addListener('readyToClose', () => closeVisio());
@@ -1492,7 +1492,7 @@ async function openVisio(reponse, { titre = '', etat = null, seanceId = null, re
  * « seul dans la réunion », personne ne s'entend), on le dit à la personne et on le signale
  * automatiquement à l'exploitant, avec l'appareil utilisé.
  */
-function surveillerMedias(api, { seanceId, jeton, nom }) {
+function surveillerMedias(api, { seanceId, jeton, nom, avecJeton }) {
   let signale = false;
   const banniere = (cle) => {
     const b = $('#visio-alerte');
@@ -1503,7 +1503,7 @@ function surveillerMedias(api, { seanceId, jeton, nom }) {
   const signaler = (details) => {
     if (signale || (!seanceId && !jeton)) return;
     signale = true;
-    const corps = { details, seance_id: seanceId, nom };
+    const corps = { details: `${details} — jeton Jitsi : ${avecJeton ? 'oui' : 'non'}`, seance_id: seanceId, nom };
     const chemin = jeton ? `/invite/${jeton}/incident` : '/aide/incident-visio';
     fetch(`/api${chemin}`, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) }).catch(() => {});
   };

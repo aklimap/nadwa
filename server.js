@@ -39,7 +39,7 @@ app.use(cookieParser());
 
 // Santé et version : ouvrir /api/sante pour savoir quelle version est en ligne.
 const { version } = require('./package.json');
-app.get('/api/sante', (req, res) => res.json({ ok: true, version, visio: visio.fournisseur(), emails: Boolean(config.smtp.host) }));
+app.get('/api/sante', (req, res) => res.set('Cache-Control', 'no-store').json({ ok: true, version, visio: visio.fournisseur(), emails: Boolean(config.smtp.host) }));
 app.use('/api/auth', require('./src/routes/auth'));
 app.use('/api/espaces', require('./src/routes/espaces'));
 app.use('/api/rejoindre', require('./src/routes/rejoindre'));

@@ -25,6 +25,7 @@ function signaler({ seance, qui, utilisateurId = null, details, navigateur }) {
       `Réunion : ${seance.titre} (n° ${seance.id})`,
       `Personne : ${qui}`,
       `Détail : ${texte}`,
+      `Version de Nadwa : ${require('../package.json').version}`,
       `Appareil : ${ua}`,
       "Cause la plus fréquente : le serveur vidéo (Jitsi, Hetzner) n'est pas joignable en UDP 10000 (pare-feu), ou son adresse IP publique n'est pas annoncée (JVB_ADVERTISE_IPS). Voir le README, section Visio.",
     ],
