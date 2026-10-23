@@ -263,6 +263,8 @@ window.NADWA_TEXTES = {
   micro_https: ['The microphone only works on a secure address (https://nadwalive.com).', "Le micro ne fonctionne que sur une adresse sécurisée (https://nadwalive.com).", 'لا يعمل الميكروفون إلا على عنوان آمن (https://nadwalive.com).'],
   micro_erreur: ['Your microphone could not be started. Press Try again.', "Le micro n'a pas pu démarrer. Cliquez sur Réessayer.", 'تعذّر تشغيل الميكروفون. اضغط إعادة المحاولة.'],
   reessayer: ['Try again', 'Réessayer', 'إعادة المحاولة'],
+  visio_media_echec: ['The audio/video connection to the video server failed: the others may not see or hear you. The Nadwa team has been notified. Try leaving and joining again, or switch network (Wi-Fi / mobile data).', "La connexion audio/vidéo avec le serveur vidéo a échoué : les autres peuvent ne pas vous voir ni vous entendre. L'équipe Nadwa a été prévenue. Quittez puis rejoignez à nouveau, ou changez de réseau (Wi-Fi / données mobiles).", 'فشل اتصال الصوت والصورة بخادم الفيديو: قد لا يراك الآخرون ولا يسمعونك. تم إبلاغ فريق ندوة. غادر ثم انضم مجددًا، أو غيّر الشبكة (Wi-Fi / بيانات الهاتف).'],
+  visio_connexion_echec: ['Could not connect to the video meeting. The Nadwa team has been notified. Try leaving and joining again.', "Impossible de se connecter à la visio. L'équipe Nadwa a été prévenue. Quittez puis rejoignez à nouveau.", 'تعذّر الاتصال بالاجتماع المرئي. تم إبلاغ فريق ندوة. غادر ثم انضم مجددًا.'],
   rechercher_ou_email: ['Name or email addresses', 'Nom ou adresses e-mail', 'الاسم أو عناوين البريد الإلكتروني'],
   inviter_adresse: ['Invite {email}', 'Inviter {email}', 'دعوة {email}'],
   inviter_n_adresses: ['Invite these {n} addresses', 'Inviter ces {n} adresses', 'دعوة هذه العناوين ({n})'],

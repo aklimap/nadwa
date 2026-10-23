@@ -81,6 +81,20 @@ routeur.get('/:jeton/demande/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+/**
+ * Incident de visio signalé automatiquement par la page (connexion audio/vidéo impossible…),
+ * pour un invité sans compte. Gardé dans les retours et envoyé à l'exploitant.
+ */
+routeur.post('/:jeton/incident', (req, res) => {
+  const { seance } = trouver(req, res);
+  if (!seance) return;
+  const recents = db.prepare("SELECT COUNT(*) AS n FROM retours WHERE type = 'visio' AND page = ? AND cree_le > ?")
+    .get(`reunion ${seance.id}`, new Date(Date.now() - 3600_000).toISOString()).n;
+  if (recents >= 5) return res.json({ ok: true });
+  require('../incidents').signaler({ seance, qui: `${String(req.body?.nom || 'Invité').slice(0, 60)} (invité sans compte)`, details: req.body?.details, navigateur: req.get('user-agent') });
+  res.json({ ok: true });
+});
+
 /** La personne quitte la salle d'attente (bouton, ou fermeture de l'onglet). */
 routeur.post('/:jeton/demande/:id/quitter', (req, res) => {
   const { seance } = trouver(req, res);

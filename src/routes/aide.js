@@ -44,6 +44,17 @@ routeur.post('/retour', (req, res) => {
   res.status(201).json({ ok: true });
 });
 
+// Incident de visio signalé automatiquement (membre connecté).
+routeur.post('/incident-visio', (req, res) => {
+  const seance = db.prepare('SELECT id, titre FROM seances WHERE id = ?').get(Number(req.body?.seance_id));
+  if (!seance) return res.json({ ok: true });
+  const recents = db.prepare("SELECT COUNT(*) AS n FROM retours WHERE type = 'visio' AND page = ? AND cree_le > ?")
+    .get(`reunion ${seance.id}`, new Date(Date.now() - 3600_000).toISOString()).n;
+  if (recents >= 5) return res.json({ ok: true });
+  require('../incidents').signaler({ seance, qui: `${req.utilisateur.nom} <${req.utilisateur.email}>`, utilisateurId: req.utilisateur.id, details: req.body?.details, navigateur: req.get('user-agent') });
+  res.json({ ok: true });
+});
+
 routeur.post('/evaluation', (req, res) => {
   const note = Number(req.body?.note);
   if (!Number.isInteger(note) || note < 1 || note > 5) return res.status(400).json({ erreur: t(req, 'evaluation_note') });

@@ -1479,9 +1479,45 @@ async function openVisio(reponse, { titre = '', etat = null, seanceId = null, re
   });
   Object.assign(visio, { api, etat, seanceId, ref, inviteId, debut: Date.now(), timer: etat ? setInterval(checkVisio, 10_000) : null });
   state.socket?.emit('presence:reunion', v.salle);
+  surveillerMedias(api, { seanceId: ref?.seance_id || null, jeton: prejoin.mode === 'invite' ? prejoin.jeton : null, nom: v.nom });
   // Raccrocher dans la visio, ou être exclu quand l'organisateur termine : retour à Nadwa.
   api.addListener('videoConferenceLeft', () => closeVisio());
   api.addListener('readyToClose', () => closeVisio());
+}
+
+/**
+ * Diagnostic de la visio : si la connexion audio/vidéo avec le serveur vidéo échoue (cas typique :
+ * « seul dans la réunion », personne ne s'entend), on le dit à la personne et on le signale
+ * automatiquement à l'exploitant, avec l'appareil utilisé.
+ */
+function surveillerMedias(api, { seanceId, jeton, nom }) {
+  let signale = false;
+  const banniere = (cle) => {
+    const b = $('#visio-alerte');
+    if (!b) return;
+    b.textContent = t(cle);
+    b.hidden = false;
+  };
+  const signaler = (details) => {
+    if (signale || (!seanceId && !jeton)) return;
+    signale = true;
+    const corps = { details, seance_id: seanceId, nom };
+    const chemin = jeton ? `/invite/${jeton}/incident` : '/aide/incident-visio';
+    fetch(`/api${chemin}`, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) }).catch(() => {});
+  };
+  try {
+    api.addListener('peerConnectionFailure', (e) => {
+      if (e?.isP2P) return; // Jitsi repasse alors par le serveur vidéo tout seul
+      banniere('visio_media_echec');
+      signaler(`connexion au serveur vidéo impossible (peerConnectionFailure${e?.wasConnected ? ', coupée en cours' : ''})`);
+    });
+    api.addListener('errorOccurred', (e) => {
+      const err = e?.error || {};
+      if (!err.isFatal && !/conference|connection/i.test(err.name || '')) return;
+      banniere('visio_connexion_echec');
+      signaler(`erreur ${err.name || ''} ${err.message || ''}`.trim());
+    });
+  } catch { /* ancienne version de Jitsi */ }
 }
 
 function closeVisio(rafraichir = true) {
@@ -1493,6 +1529,7 @@ function closeVisio(rafraichir = true) {
   if (api) { try { api.dispose(); } catch { /* déjà fermée */ } }
   $('#visio-cadre').innerHTML = '';
   $('#ecran-visio').hidden = true;
+  if ($('#visio-alerte')) $('#visio-alerte').hidden = true;
   if (api) state.socket?.emit('presence:reunion', false);
   if (rafraichir && api && state.me) {
     loadMeetings();

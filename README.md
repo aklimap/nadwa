@@ -202,3 +202,14 @@ Tables : `utilisateurs`, `espaces` (organisations), `adhesions` (rôle dans l'or
 - par organisation : domaine e-mail autorisé, logo et couleurs.
 
 **Ouverture commerciale** : offres par espace (gratuite limitée, puis abonnements selon le nombre de personnes et d'heures de visio), facturation, connexion unique avec les annuaires des organisations, passage à PostgreSQL, plusieurs serveurs BigBlueButton répartis avec Scalelite, application mobile.
+
+## Visio : « seul dans la réunion », personne ne s'entend
+
+Si deux personnes sont dans la même réunion mais ne se voient pas ou ne s'entendent pas (souvent un téléphone sur données mobiles), Nadwa affiche un bandeau et envoie automatiquement un e-mail « [Nadwa · visio] » à l'exploitant. La cause est presque toujours le serveur vidéo Jitsi (Hetzner), pas Nadwa :
+
+1. **Port UDP 10000 ouvert** dans le pare-feu Hetzner Cloud (console Hetzner → Firewalls) et sur le serveur (`sudo ufw allow 10000/udp`).
+2. **Adresse IP publique annoncée** dans le `.env` de docker-jitsi-meet : `JVB_ADVERTISE_IPS=<IP publique du serveur>`, puis `docker compose up -d`.
+3. **Invités sans compte** : `ENABLE_GUESTS=1` (avec `ENABLE_AUTH=1` et `AUTH_TYPE=jwt`).
+4. **Réseaux stricts** (entreprises, certains opérateurs mobiles) : ajouter un serveur TURN sur le port 443 (coturn).
+
+Test rapide qui isole Jitsi : ouvrir `https://meet.nadwalive.com/test-123` sur deux appareils (un sur Wi-Fi, un sur données mobiles). Si on ne se voit pas là non plus, c'est le serveur Jitsi.

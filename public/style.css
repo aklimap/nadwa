@@ -640,3 +640,6 @@ fieldset.participants legend { padding: 0; margin-bottom: 4px; font-weight: 600;
 .test-micro-erreur { margin: 0; max-width: 520px; font-size: 13px; color: var(--danger, #B42318); font-weight: 600; }
 .test-micro-choix { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--encre-2); }
 .test-micro-choix select { max-width: 260px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--ligne-2); background: var(--surface); color: var(--encre); font: inherit; }
+
+.visio-alerte { margin: 0; padding: 10px 16px; background: #FEF0C7; color: #7A2E0E; font-size: 14px; font-weight: 600; }
+.visio-alerte[hidden] { display: none; }
