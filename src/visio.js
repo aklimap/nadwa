@@ -63,11 +63,12 @@ async function creerReunionBBB(seance, classe, langue, logo) {
 // ---------- Jitsi ----------
 
 /**
- * Jeton d'animateur pour un serveur Jitsi privé (jitsi-meet-tokens).
- * Seuls les animateurs en reçoivent un : ils ouvrent la salle et en sont modérateurs ;
- * les autres participants entrent comme invités, une fois l'animateur arrivé.
+ * Jeton pour un serveur Jitsi privé (jitsi-meet-tokens).
+ * Nadwa contrôle qui entre (équipe, invitations, salle d'attente) : TOUTE personne qu'il laisse
+ * entrer reçoit un jeton signé, sinon le serveur Jitsi la refuse (« impossible de se connecter »)
+ * ou la laisse seule devant « en attente de l'organisateur ». Seuls les animateurs sont modérateurs.
  */
-function jetonJitsi(salle, utilisateur) {
+function jetonJitsi(salle, utilisateur, moderateur) {
   if (!config.jitsiAppId || !config.jitsiAppSecret) return null;
   return jwt.sign(
     {
@@ -75,7 +76,10 @@ function jetonJitsi(salle, utilisateur) {
       iss: config.jitsiAppId,
       sub: config.jitsiDomaine,
       room: salle.toLowerCase(),
-      context: { user: { id: String(utilisateur.id), name: utilisateur.nom, moderator: true } },
+      moderator: Boolean(moderateur),
+      context: {
+        user: { id: String(utilisateur.id), name: utilisateur.nom, moderator: Boolean(moderateur), affiliation: moderateur ? 'owner' : 'member' },
+      },
     },
     config.jitsiAppSecret,
     { algorithm: 'HS256', expiresIn: '12h', notBefore: -60 },
@@ -117,12 +121,12 @@ async function lienVisio({ seance, classe, utilisateur, moderateur, langue = 'en
 
   const salle = encodeURIComponent(seance.reunion_id);
   const nom = encodeURIComponent(JSON.stringify(utilisateur.nom));
-  const jeton = moderateur ? jetonJitsi(seance.reunion_id, utilisateur) : null;
+  const jeton = jetonJitsi(seance.reunion_id, utilisateur, moderateur);
   const requete = jeton ? `?jwt=${jeton}` : '';
   return {
     fournisseur: 'jitsi',
     // Pour afficher la visio dans la page Nadwa (API IFrame de Jitsi), comme Teams.
-    integration: { domaine: config.jitsiDomaine, salle: seance.reunion_id, jwt: jeton, nom: utilisateur.nom, micro, camera, grand: grandCours(seance, classe) },
+    integration: { domaine: config.jitsiDomaine, salle: seance.reunion_id, jwt: jeton, nom: utilisateur.nom, micro, camera, moderateur: Boolean(moderateur), grand: grandCours(seance, classe) },
     // Choix faits avant d'entrer : micro et caméra activés ou coupés au démarrage.
     url: `https://${config.jitsiDomaine}/${salle}${requete}#userInfo.displayName=${nom}&config.startWithAudioMuted=${!micro}&config.startWithVideoMuted=${!camera}&config.prejoinConfig.enabled=false`,
   };

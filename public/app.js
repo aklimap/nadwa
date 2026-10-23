@@ -1473,6 +1473,8 @@ async function openVisio(reponse, { titre = '', etat = null, seanceId = null, re
       // L'invitation de Jitsi donne l'adresse brute du serveur vidéo et ne sait pas ajouter
       // des personnes : on la masque, Nadwa a son propre bouton « Ajouter des personnes ».
       disableInviteFunctions: true,
+      // Participants (non animateurs) : pas de pouvoirs de modération dans la visio.
+      ...(v.moderateur === false ? { disableRemoteMute: true, remoteVideoMenu: { disableKick: true, disableGrantModerator: true, disablePrivateChat: false } } : {}),
       // Grand cours : vidéo limitée à 360p (débit divisé par 2 à 3 pour le serveur et les élèves).
       ...(v.grand ? { resolution: 360, constraints: { video: { height: { ideal: 360, max: 360, min: 180 } } } } : {}),
     },
@@ -1513,8 +1515,10 @@ function surveillerMedias(api, { seanceId, jeton, nom }) {
     });
     api.addListener('errorOccurred', (e) => {
       const err = e?.error || {};
-      if (!err.isFatal && !/conference|connection/i.test(err.name || '')) return;
+      if (!err.isFatal) return; // erreur passagère : Jitsi se reconnecte tout seul
       banniere('visio_connexion_echec');
+      const b = $('#visio-alerte');
+      if (b && err.name) b.textContent += ` (${err.name})`;
       signaler(`erreur ${err.name || ''} ${err.message || ''}`.trim());
     });
   } catch { /* ancienne version de Jitsi */ }
