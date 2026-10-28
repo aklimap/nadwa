@@ -7,6 +7,17 @@ const { annoncerSeances } = require('./classes');
 const { t, langueDe } = require('../i18n');
 const limites = require('../limites');
 const salle = require('../salle-attente');
+const presences = require('../presences');
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS notes_reunion (
+  seance_id  INTEGER PRIMARY KEY REFERENCES seances(id) ON DELETE CASCADE,
+  contenu    TEXT NOT NULL DEFAULT '',
+  maj_le     INTEGER NOT NULL,
+  maj_par    INTEGER REFERENCES utilisateurs(id) ON DELETE SET NULL
+);
+`);
+const MAX_NOTES = 50_000;
 
 const routeur = express.Router();
 routeur.use(exigerConnexion);
@@ -45,7 +56,10 @@ routeur.post('/:id/rejoindre', async (req, res, next) => {
     if (refus) return res.status(403).json({ erreur: refus });
     limites.noterOuverture(seance);
     const { micro = true, camera = true } = req.body || {};
-    res.json(await visio.lienVisio({ seance, classe, utilisateur: u, moderateur, langue: langueDe(req), micro: micro !== false, camera: camera !== false, logo: `${req.protocol}://${req.get('host')}/logo-nadwa${langueDe(req) === 'ar' ? '-ar' : ''}.svg` }));
+    const lien = await visio.lienVisio({ seance, classe, utilisateur: u, moderateur, langue: langueDe(req), micro: micro !== false, camera: camera !== false, logo: `${req.protocol}://${req.get('host')}/logo-nadwa${langueDe(req) === 'ar' ? '-ar' : ''}.svg` });
+    // Présence : arrivée notée ; la page envoie ensuite un signe de vie et son départ.
+    const presence = presences.arriver(seance, { cle: `u:${u.id}`, utilisateurId: u.id, nom: u.nom });
+    res.json({ ...lien, presence });
   } catch (err) {
     next(err);
   }
@@ -129,6 +143,64 @@ routeur.post('/:id/demandes/:did', (req, res) => {
   res.json({ ok: true, statut: d.statut });
 });
 
+// ---------- Présences (organisateur) ----------
+const libellesCsv = (req) => ({
+  entetes: ['nom', 'email', 'role', 'statut', 'arrivee', 'depart', 'duree_min', 'entrees'].map((k) => t(req, `pres_col_${k}`)),
+  roles: Object.fromEntries(['organisateur', 'membre', 'invite', 'invite_email', 'invite_lien'].map((k) => [k, t(req, `pres_role_${k}`)])),
+  statuts: Object.fromEntries(presences.STATUTS.map((k) => [k, t(req, `pres_statut_${k}`)])),
+  en_cours: t(req, 'pres_en_cours'),
+});
+function hote(req, res) {
+  const acces = trouver(req, res);
+  if (!acces) return null;
+  if (!peutAnimer(req.utilisateur, acces.seance, acces.classe)) { res.status(403).json({ erreur: t(req, 'presences_hote') }); return null; }
+  return acces;
+}
+routeur.get('/:id/presences', (req, res) => {
+  const acces = hote(req, res);
+  if (acces) res.json(presences.rapport(acces.seance, acces.classe));
+});
+routeur.put('/:id/presences', (req, res) => {
+  const acces = hote(req, res);
+  if (!acces) return;
+  const cle = String(req.body?.cle || '').slice(0, 300);
+  const statut = req.body?.statut ? String(req.body.statut) : null;
+  if (!cle || (statut && !presences.STATUTS.includes(statut))) return res.status(400).json({ erreur: t(req, 'presences_statut') });
+  presences.corriger(acces.seance.id, cle, statut);
+  res.json(presences.rapport(acces.seance, acces.classe));
+});
+routeur.get('/:id/presences.csv', (req, res) => {
+  const acces = hote(req, res);
+  if (!acces) return;
+  const r = presences.rapport(acces.seance, acces.classe);
+  const nom = `presences-${acces.seance.debut.slice(0, 10)}-${acces.seance.titre.normalize('NFD').replace(/[^\w-]+/g, '-').replace(/-+/g, '-').slice(0, 40)}.csv`;
+  res.set('Content-Disposition', `attachment; filename="${nom}"`);
+  res.type('text/csv; charset=utf-8').send(presences.csv(r, { langue: langueDe(req), fuseau: String(req.query.fuseau || ''), libelles: libellesCsv(req) }));
+});
+
+// ---------- Notes de réunion (comme Teams) ----------
+// Partagées par toutes les personnes de la réunion qui ont un compte ; enregistrées ; mises à jour en direct.
+routeur.get('/:id/notes', (req, res) => {
+  const acces = trouver(req, res);
+  if (!acces) return;
+  const n = db.prepare('SELECT n.contenu, n.maj_le, u.nom AS maj_par_nom FROM notes_reunion n LEFT JOIN utilisateurs u ON u.id = n.maj_par WHERE n.seance_id = ?').get(acces.seance.id);
+  res.json({ contenu: n?.contenu || '', maj_le: n?.maj_le || 0, maj_par_nom: n?.maj_par_nom || null, titre: acces.seance.titre, debut: acces.seance.debut });
+});
+routeur.put('/:id/notes', (req, res) => {
+  const acces = trouver(req, res);
+  if (!acces) return;
+  const contenu = String(req.body?.contenu ?? '');
+  if (contenu.length > MAX_NOTES) return res.status(413).json({ erreur: t(req, 'notes_trop_longues') });
+  const majLe = Date.now();
+  db.prepare(`INSERT INTO notes_reunion (seance_id, contenu, maj_le, maj_par) VALUES (?, ?, ?, ?)
+    ON CONFLICT(seance_id) DO UPDATE SET contenu = excluded.contenu, maj_le = excluded.maj_le, maj_par = excluded.maj_par`)
+    .run(acces.seance.id, contenu, majLe, req.utilisateur.id);
+  req.app.get('io')?.to(`seance:${acces.seance.id}`).emit('notes:maj', {
+    seance_id: acces.seance.id, contenu, maj_le: majLe, maj_par: req.utilisateur.id, maj_par_nom: req.utilisateur.nom, client: String(req.body?.client || '').slice(0, 40),
+  });
+  res.json({ maj_le: majLe });
+});
+
 // Retirer un invité sans compte (adresse e-mail).
 routeur.delete('/:id/externes', (req, res) => {
   const acces = trouver(req, res);
@@ -150,6 +222,7 @@ routeur.post('/:id/terminer', (req, res) => {
   if (!organisateur) return res.status(403).json({ erreur: t(req, 'terminer_reunion_owner') });
   db.prepare('UPDATE seances SET terminee_le = ? WHERE id = ?').run(new Date().toISOString(), seance.id);
   salle.fermer(req.app.get('io'), seance);
+  presences.fermerTout(seance.id);
   annoncerSeances(req, classe.id, invitesDe(seance.id).map((p) => p.id));
   res.json({ ok: true });
 });

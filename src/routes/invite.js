@@ -77,7 +77,8 @@ routeur.get('/:jeton/demande/:id', async (req, res, next) => {
       seance, classe, utilisateur: invite, moderateur: false, langue: langueDe(req),
       micro: req.query.micro !== '0', camera: req.query.camera !== '0', logo: logoDe(req),
     });
-    res.json({ statut: 'admise', ...visioLien });
+    const presence = require('../presences').arriver(seance, { cle: `i:${d.id}`, nom: d.nom });
+    res.json({ statut: 'admise', ...visioLien, presence });
   } catch (err) { next(err); }
 });
 

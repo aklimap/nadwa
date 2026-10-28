@@ -24,6 +24,8 @@ L'interface est en **arabe, français et anglais** ; l'arabe s'affiche de droite
 
 - Discussion de groupe en temps réel (Socket.IO), historique conservé.
 - Invitations aux réunions comme dans Teams et Meet : on tape ou colle une ou plusieurs adresses e-mail, avec ou sans compte Nadwa. Les comptes voient la réunion dans leur agenda (même s'ils sont dans une autre organisation) et reçoivent une notification et un e-mail ; les autres reçoivent le lien par e-mail et entrent avec leur nom. Chaque invitation contient un fichier d'agenda (.ics).
+- **Présences** (organisateur) : prises automatiquement à l'arrivée et au départ de chacun (membres, invités, invités par le lien), statut Présent / En retard / Absent / Excusé modifiable, export Excel (CSV). Bouton « Présences » dans la visio et dans la fiche de la réunion.
+- **Notes de réunion** : bloc-notes partagé par les participants qui ont un compte, enregistré automatiquement, mis à jour en direct, avec un modèle (ordre du jour, décisions, actions) et téléchargement.
 - Réunions planifiées avec date, heure et durée ; la salle ouvre 10 minutes avant le début pour les membres, l'Owner peut l'ouvrir quand il veut.
 - Visioconférence **BigBlueButton** (recommandé, auto-hébergé : tableau blanc, sondages, sous-groupes, partage d'écran, enregistrement) ou **Jitsi** en démonstration.
 - Interface en arabe, français et anglais ; page de gestion de l'organisation ; page d'exploitation de la plateforme.

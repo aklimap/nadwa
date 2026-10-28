@@ -79,13 +79,21 @@
       <strong class="visio-titre" id="visio-titre"></strong>
       <div class="visio-actions">
         <button class="btn btn-soleil" id="visio-attente" hidden><span></span></button>
+        <button class="btn btn-contour-clair" id="visio-notes" hidden><span data-i18n="notes_reunion"></span></button>
+        <button class="btn btn-contour-clair" id="visio-presences" hidden><span data-i18n="presences"></span></button>
         <button class="btn btn-contour-clair" id="visio-inviter" hidden><span data-i18n="ajouter_personnes"></span></button>
         <button class="btn btn-danger" id="visio-terminer" data-i18n="terminer_pour_tous" hidden></button>
         <button class="btn btn-contour-clair" id="visio-quitter" data-i18n="quitter"></button>
       </div>
     </header>
     <p class="visio-alerte" id="visio-alerte" role="alert" hidden></p>
-    <div class="visio-cadre" id="visio-cadre"></div>
+    <div class="visio-corps">
+      <div class="visio-cadre" id="visio-cadre"></div>
+      <aside class="visio-panneau" id="visio-panneau" hidden aria-labelledby="panneau-titre">
+        <header class="panneau-entete"><h2 id="panneau-titre"></h2><button type="button" class="panneau-fermer" id="panneau-fermer" data-i18n-aria="fermer">×</button></header>
+        <div class="panneau-corps" id="panneau-corps"></div>
+      </aside>
+    </div>
   </div>
 
   <!-- ============ Application ============ -->
@@ -503,6 +511,15 @@
         <button type="submit" class="btn btn-accent" id="iv-envoyer" data-i18n="envoyer_invitation"></button>
       </div>
     </form>
+  </dialog>
+
+  <!-- Notes ou présences d'une réunion, depuis sa fiche (hors visio) -->
+  <dialog id="dlg-outil" class="dlg-large">
+    <div class="dlg-corps">
+      <h2 id="outil-titre"></h2>
+      <div id="outil-corps"></div>
+      <button type="button" class="btn-lien dlg-fermer" data-fermer data-i18n="fermer"></button>
+    </div>
   </dialog>
 
   <dialog id="dlg-reunion">

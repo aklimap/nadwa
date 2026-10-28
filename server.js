@@ -49,6 +49,7 @@ app.use('/api/seances', require('./src/routes/seances'));
 app.use('/api/agenda', require('./src/routes/agenda'));
 app.use('/api/plateforme', require('./src/routes/plateforme'));
 app.use('/api/invite', require('./src/routes/invite'));
+app.use('/api/presence', require('./src/routes/presence'));
 app.use('/api/conversations', require('./src/routes/conversations'));
 app.use('/api/notifications', require('./src/routes/notifications'));
 app.use('/api/aide', require('./src/routes/aide'));

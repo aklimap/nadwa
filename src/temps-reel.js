@@ -90,6 +90,14 @@ module.exports = function brancherTempsReel(io) {
     // Langue de l'interface, pour les messages d'erreur.
     socket.on('langue', (langue) => { socket.data.langue = String(langue || '').slice(0, 2); });
 
+    // Notes de réunion en direct : on suit une réunion à laquelle on a accès.
+    socket.on('seance:suivre', (seanceId) => {
+      const acces = require('./metier').seanceAccessible(u, Number(seanceId));
+      if (!acces) return;
+      for (const salle of socket.rooms) if (salle.startsWith('seance:')) socket.leave(salle);
+      socket.join(`seance:${acces.seance.id}`);
+    });
+
     socket.on('classe:rejoindre', (classeId) => {
       const classe = classeAccessible(u, Number(classeId));
       if (!classe) return;

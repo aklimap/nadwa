@@ -578,6 +578,8 @@ function connectSocket() {
     renderLobby();
     if (nouvelle) { lobbyChime(); alertLobby(d); }
   });
+  socket.on('notes:maj', onNotesUpdate);
+  socket.on('connect', () => { if (notes.seanceId) socket.emit('seance:suivre', notes.seanceId); });
   socket.on('salle:maj', ({ id, seance_id, tout }) => {
     if (tout) [...attente.values()].filter((d) => d.seance_id === seance_id).forEach((d) => attente.delete(d.id));
     else attente.delete(id);
@@ -1516,6 +1518,10 @@ async function openVisio(reponse, { titre = '', etat = null, seanceId = null, re
       ...(v.grand ? { resolution: 360, constraints: { video: { height: { ideal: 360, max: 360, min: 180 } } } } : {}),
     },
   });
+  demarrerPresence(reponse.presence);
+  $('#visio-notes').hidden = !inviteId;
+  $('#visio-presences').hidden = true;
+  if (inviteId) api_participants(inviteId).then((p) => { if (visio.inviteId === inviteId) $('#visio-presences').hidden = !p?.peutModifier; });
   Object.assign(visio, { api, etat, seanceId, ref, inviteId, debut: Date.now(), timer: etat ? setInterval(checkVisio, 10_000) : null });
   state.socket?.emit('presence:reunion', v.salle);
   surveillerMedias(api, { seanceId: ref?.seance_id || null, jeton: prejoin.mode === 'invite' ? prejoin.jeton : null, nom: v.nom, avecJeton: Boolean(v.jwt) });
@@ -1528,6 +1534,216 @@ async function openVisio(reponse, { titre = '', etat = null, seanceId = null, re
   // Raccrocher dans la visio, ou être exclu quand l'organisateur termine : retour à Nadwa.
   api.addListener('videoConferenceLeft', () => closeVisio());
   api.addListener('readyToClose', () => closeVisio());
+}
+
+const api_participants = (id) => api(`/seances/${id}/participants`).catch(() => null);
+
+// ---------- Présence pendant la visio (signe de vie et départ) ----------
+const presenceVisio = { id: null, secret: null, timer: null };
+function demarrerPresence(p) {
+  arreterPresence();
+  if (!p?.id) return;
+  Object.assign(presenceVisio, { id: p.id, secret: p.secret });
+  const vu = () => fetch(`/api/presence/${p.id}/vu?secret=${encodeURIComponent(p.secret)}`, { method: 'POST', keepalive: true }).catch(() => {});
+  presenceVisio.timer = setInterval(vu, 60_000);
+}
+function arreterPresence() {
+  clearInterval(presenceVisio.timer);
+  if (presenceVisio.id) {
+    const url = `/api/presence/${presenceVisio.id}/depart?secret=${encodeURIComponent(presenceVisio.secret)}`;
+    if (!navigator.sendBeacon?.(url)) fetch(url, { method: 'POST', keepalive: true }).catch(() => {});
+  }
+  Object.assign(presenceVisio, { id: null, secret: null, timer: null });
+}
+addEventListener('pagehide', () => { if (presenceVisio.id) arreterPresence(); });
+
+// ---------- Panneau latéral de la visio : Notes et Présences ----------
+const panneau = { outil: null, seanceId: null, timer: null };
+function openPanel(outil) {
+  const id = visio.inviteId;
+  if (!id) return;
+  if (panneau.outil === outil) { closePanel(); return; }
+  closePanel();
+  Object.assign(panneau, { outil, seanceId: id });
+  $('#panneau-titre').textContent = t(outil === 'notes' ? 'notes_reunion' : 'presences');
+  $('#visio-panneau').hidden = false;
+  $('#visio-notes').setAttribute('aria-pressed', String(outil === 'notes'));
+  $('#visio-presences').setAttribute('aria-pressed', String(outil === 'presences'));
+  if (outil === 'notes') renderNotes($('#panneau-corps'), id);
+  else renderPresences($('#panneau-corps'), id, () => panneau.outil === 'presences');
+}
+function closePanel() {
+  clearInterval(panneau.timer);
+  stopNotes();
+  Object.assign(panneau, { outil: null, seanceId: null, timer: null });
+  if ($('#visio-panneau')) $('#visio-panneau').hidden = true;
+  $('#visio-notes')?.setAttribute('aria-pressed', 'false');
+  $('#visio-presences')?.setAttribute('aria-pressed', 'false');
+}
+$('#visio-notes').addEventListener('click', () => openPanel('notes'));
+$('#visio-presences').addEventListener('click', () => openPanel('presences'));
+$('#panneau-fermer').addEventListener('click', closePanel);
+
+/** Notes ou présences depuis la fiche d'une réunion (hors visio). */
+function openTool(outil, seanceId) {
+  const dlg = $('#dlg-outil');
+  $('#outil-titre').textContent = t(outil === 'notes' ? 'notes_reunion' : 'presences');
+  dlg.showModal();
+  if (outil === 'notes') renderNotes($('#outil-corps'), seanceId);
+  else renderPresences($('#outil-corps'), seanceId, () => dlg.open);
+  dlg.addEventListener('close', () => { stopNotes(); clearInterval(panneau.timerOutil); $('#outil-corps').innerHTML = ''; }, { once: true });
+}
+
+// ---------- Notes de réunion (comme Teams) ----------
+// Partagées par les personnes de la réunion qui ont un compte, enregistrées automatiquement,
+// mises à jour en direct chez les autres.
+const notes = { seanceId: null, zone: null, client: Math.random().toString(36).slice(2), timer: null, envoye: '', enAttente: null };
+const MODELE_NOTES = () => [
+  `${t('notes_modele_ordre')}\n- \n`,
+  `${t('notes_modele_points')}\n- \n`,
+  `${t('notes_modele_decisions')}\n- \n`,
+  `${t('notes_modele_actions')}\n- [ ]  (${t('notes_modele_qui')}, ${t('notes_modele_quand')})\n`,
+].join('\n');
+
+async function renderNotes(conteneur, seanceId) {
+  stopNotes();
+  conteneur.innerHTML = `<p class="note">${t('chargement')}</p>`;
+  let n;
+  try { n = await api(`/seances/${seanceId}/notes`); } catch (err) { conteneur.innerHTML = `<p class="note">${esc(err.message)}</p>`; return; }
+  Object.assign(notes, { seanceId, envoye: n.contenu, enAttente: null });
+  conteneur.innerHTML = `
+    <div class="notes">
+      <p class="note">${t('notes_aide')}</p>
+      <textarea class="notes-texte" id="notes-texte" dir="auto" spellcheck="true" maxlength="50000" placeholder="${esc(t('notes_placeholder'))}"></textarea>
+      <div class="notes-pied">
+        <span class="notes-etat" id="notes-etat" aria-live="polite"></span>
+        <span class="notes-actions">
+          <button type="button" class="btn btn-contour btn-petit" id="notes-modele">${t('notes_modele')}</button>
+          <button type="button" class="btn btn-contour btn-petit" id="notes-telecharger">${t('telecharger')}</button>
+        </span>
+      </div>
+      <p class="notes-maj" id="notes-maj" hidden><span></span> <button type="button" class="btn-lien" id="notes-charger">${t('notes_charger')}</button></p>
+    </div>`;
+  const zone = $('#notes-texte', conteneur);
+  notes.zone = zone;
+  zone.value = n.contenu;
+  etatNotes(n.maj_le ? t('notes_enregistrees_par', { nom: n.maj_par_nom || '—', heure: fmt.time.format(new Date(n.maj_le)) }) : '');
+  zone.addEventListener('input', () => {
+    etatNotes(t('notes_en_cours'));
+    clearTimeout(notes.timer);
+    notes.timer = setTimeout(saveNotes, 800);
+  });
+  zone.addEventListener('blur', () => { if (zone.value !== notes.envoye) { clearTimeout(notes.timer); saveNotes(); } });
+  $('#notes-modele', conteneur).addEventListener('click', () => {
+    const debut = zone.value.trim() ? `${zone.value.replace(/\s+$/, '')}\n\n` : '';
+    zone.value = debut + MODELE_NOTES();
+    zone.focus();
+    zone.dispatchEvent(new Event('input'));
+  });
+  $('#notes-telecharger', conteneur).addEventListener('click', () => {
+    const entete = `${n.titre}\n${whenRange(new Date(n.debut), new Date(n.debut))}\n\n`;
+    const blob = new Blob([`\uFEFF${entete}${zone.value}`], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `notes-${n.debut.slice(0, 10)}-${n.titre.normalize('NFD').replace(/[^\w-]+/g, '-').slice(0, 40)}.txt`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  });
+  $('#notes-charger', conteneur).addEventListener('click', () => {
+    if (!notes.enAttente) return;
+    zone.value = notes.enAttente.contenu;
+    notes.envoye = notes.enAttente.contenu;
+    notes.enAttente = null;
+    $('#notes-maj').hidden = true;
+  });
+  state.socket?.emit('seance:suivre', seanceId);
+}
+function etatNotes(texte) { const e = $('#notes-etat'); if (e) e.textContent = texte; }
+async function saveNotes() {
+  const zone = notes.zone;
+  if (!zone || !notes.seanceId) return;
+  const contenu = zone.value;
+  if (contenu === notes.envoye) { etatNotes(t('notes_enregistrees')); return; }
+  try {
+    const r = await api(`/seances/${notes.seanceId}/notes`, { method: 'PUT', body: { contenu, client: notes.client } });
+    notes.envoye = contenu;
+    if (zone.value === contenu) etatNotes(t('notes_enregistrees_a', { heure: fmt.time.format(new Date(r.maj_le)) }));
+  } catch (err) { etatNotes(err.message); }
+}
+function stopNotes() {
+  if (notes.zone && notes.zone.value !== notes.envoye) { clearTimeout(notes.timer); saveNotes(); }
+  clearTimeout(notes.timer);
+  Object.assign(notes, { seanceId: null, zone: null, timer: null, enAttente: null });
+}
+/** Notes modifiées par quelqu'un d'autre : remplacées tout de suite si l'on n'est pas en train d'écrire. */
+function onNotesUpdate(d) {
+  if (!notes.zone || d.seance_id !== notes.seanceId || d.client === notes.client) return;
+  const enTrainDecrire = document.activeElement === notes.zone && notes.zone.value !== notes.envoye;
+  if (!enTrainDecrire) {
+    const pos = notes.zone.selectionStart;
+    notes.zone.value = d.contenu;
+    notes.envoye = d.contenu;
+    try { notes.zone.setSelectionRange(pos, pos); } catch { /* sans incidence */ }
+    etatNotes(t('notes_enregistrees_par', { nom: d.maj_par_nom, heure: fmt.time.format(new Date(d.maj_le)) }));
+  } else {
+    notes.enAttente = d;
+    const m = $('#notes-maj');
+    if (m) { $('span', m).textContent = t('notes_modifiees_par', { nom: d.maj_par_nom }); m.hidden = false; }
+  }
+}
+
+// ---------- Présences (organisateur) ----------
+const STATUTS_PRESENCE = ['present', 'retard', 'absent', 'excuse'];
+async function renderPresences(conteneur, seanceId, ouvert) {
+  const charger = async () => {
+    if (!ouvert()) return;
+    try {
+      const r = await api(`/seances/${seanceId}/presences`);
+      if (ouvert()) dessiner(r);
+    } catch (err) { conteneur.innerHTML = `<p class="note">${esc(err.message)}</p>`; }
+  };
+  const heure = (iso) => (iso ? fmt.time.format(new Date(iso)) : '');
+  const dessiner = (r) => {
+    const z = r.resume;
+    conteneur.innerHTML = `
+      <div class="presences">
+        <div class="pres-resume">
+          <span class="pres-chiffre present"><strong>${z.presents}</strong>${t('pres_presents')}</span>
+          <span class="pres-chiffre retard"><strong>${z.retards}</strong>${t('pres_retards')}</span>
+          <span class="pres-chiffre absent"><strong>${z.absents}</strong>${t('pres_absents')}</span>
+          <span class="pres-chiffre excuse"><strong>${z.excuses}</strong>${t('pres_excuses')}</span>
+        </div>
+        <p class="note">${t(r.seance.finie ? 'pres_note_finie' : 'pres_note')}</p>
+        <ul class="pres-liste">
+          ${r.lignes.map((l) => `
+            <li class="pres-ligne">
+              ${avatarP(0, l.nom, 'petit')}
+              <div class="pres-qui">
+                <strong dir="auto">${esc(l.nom)}${l.en_cours ? ` <span class="pres-direct" title="${esc(t('pres_en_cours'))}">●</span>` : ''}</strong>
+                <small>${esc(t(`pres_role_${l.role}`))}${l.arrivee ? ` · ${heure(l.arrivee)}–${l.depart ? heure(l.depart) : t('pres_maintenant')} · ${l.duree_min} min` : ''}${l.entrees > 1 ? ` · ${esc(t('pres_n_entrees', { n: l.entrees }))}` : ''}</small>
+              </div>
+              <select class="pres-statut ${esc(l.statut || 'inconnu')}" data-cle="${esc(l.cle)}" aria-label="${esc(t('pres_statut_de', { nom: l.nom }))}">
+                <option value="" ${l.statut ? '' : 'selected'}>${l.statut_auto ? esc(t('pres_auto', { s: t(`pres_statut_${l.statut_auto}`) })) : '—'}</option>
+                ${STATUTS_PRESENCE.map((s) => `<option value="${s}" ${l.corrige && l.statut === s ? 'selected' : ''}>${esc(t(`pres_statut_${s}`))}</option>`).join('')}
+              </select>
+            </li>`).join('')}
+        </ul>
+        <button type="button" class="btn btn-contour btn-petit a-gauche" id="pres-export">${t('pres_exporter')}</button>
+      </div>`;
+    $$('.pres-statut', conteneur).forEach((sel) => {
+      sel.addEventListener('change', async () => {
+        try { dessiner(await api(`/seances/${seanceId}/presences`, { method: 'PUT', body: { cle: sel.dataset.cle, statut: sel.value || null } })); }
+        catch (err) { toast(err.message); }
+      });
+    });
+    $('#pres-export', conteneur).addEventListener('click', () => {
+      location.href = `/api/seances/${seanceId}/presences.csv?fuseau=${encodeURIComponent(timeZone() || '')}`;
+    });
+  };
+  conteneur.innerHTML = `<p class="note">${t('chargement')}</p>`;
+  await charger();
+  const timer = setInterval(() => { if (!ouvert()) clearInterval(timer); else if (!conteneur.querySelector('select:focus')) charger(); }, 15_000);
+  if (conteneur.id === 'panneau-corps') panneau.timer = timer; else panneau.timerOutil = timer;
 }
 
 /**
@@ -1602,6 +1818,8 @@ function closeVisio(rafraichir = true) {
   const { ref, debut } = visio;
   Object.assign(visio, { api: null, etat: null, timer: null, seanceId: null, ref: null, inviteId: null, debut: null });
   if ($('#dlg-inviter-visio').open) $('#dlg-inviter-visio').close();
+  arreterPresence();
+  closePanel();
   if (api) { try { api.dispose(); } catch { /* déjà fermée */ } }
   $('#visio-cadre').innerHTML = '';
   $('#ecran-visio').hidden = true;
@@ -2462,6 +2680,8 @@ function openMeetingDetail(id) {
     <section class="bloc" id="reunion-lien" hidden></section>
     <div class="dlg-actions">
       ${host ? `<button class="btn-discret" data-supprimer-seance="${m.id}">${t('supprimer')}</button>` : ''}
+      <button class="btn btn-contour" id="reunion-notes">${t('notes_reunion')}</button>
+      ${host && m.etat !== 'a_venir' ? `<button class="btn btn-contour" id="reunion-presences">${t('presences')}</button>` : ''}
       ${canEnd(m) && m.etat === 'en_direct' ? `<button class="btn btn-contour" data-terminer-seance="${m.id}">${t('terminer_reunion')}</button>` : ''}
       ${m.acces_equipe === 0 ? '' : `<button class="btn btn-contour" id="reunion-equipe">${t('ouvrir_equipe')}</button>`}
       ${canJoin ? `<button class="btn ${m.etat === 'en_direct' ? 'btn-soleil' : 'btn-accent'}" data-avant="${m.id}">${t(m.etat === 'en_direct' ? 'rejoindre_reunion' : 'demarrer')}</button>` : ''}
@@ -2470,6 +2690,8 @@ function openMeetingDetail(id) {
   $('h2', dlg).textContent = m.titre;
   $('#reunion-fermer').addEventListener('click', () => dlg.close());
   $('#reunion-equipe')?.addEventListener('click', () => { dlg.close(); showView('classes', { teamId: m.classe_id }); });
+  $('#reunion-notes').addEventListener('click', () => { dlg.close(); openTool('notes', m.id); });
+  $('#reunion-presences')?.addEventListener('click', () => { dlg.close(); openTool('presences', m.id); });
   dlg.showModal();
   loadParticipants(m);
 }
