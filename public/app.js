@@ -1474,7 +1474,16 @@ async function openVisio(reponse, { titre = '', etat = null, seanceId = null, re
       // des personnes : on la masque, Nadwa a son propre bouton « Ajouter des personnes ».
       disableInviteFunctions: true,
       // Participants (non animateurs) : pas de pouvoirs de modération dans la visio.
-      ...(v.moderateur === false ? { disableRemoteMute: true, remoteVideoMenu: { disableKick: true, disableGrantModerator: true, disablePrivateChat: false } } : {}),
+      ...(v.moderateur === false ? {
+        disableRemoteMute: true,
+        remoteVideoMenu: { disableKick: true, disableGrantModerator: true, disablePrivateChat: false },
+        participantsPane: { hideModeratorSettingsTab: true, hideMoreActionsButton: true, hideMuteAllButton: true },
+        securityUi: { hideLobbyButton: true, disableLobbyPassword: true },
+        breakoutRooms: { hideAddRoomButton: true, hideAutoAssignButton: true },
+      } : {}),
+      // « Mettre fin à la réunion pour tous » de Jitsi passe par Nadwa : seul l'organisateur
+      // peut terminer la réunion (le serveur vidéo donne ce bouton à toute personne avec un jeton).
+      buttonsWithNotifyClick: [{ key: 'end-meeting', preventExecution: true }],
       // ---- Son : éviter l'écho et le larsen (comme Teams) ----
       // Traitement du micro toujours actif : annulation d'écho, réduction du bruit, gain automatique.
       // (Le son stéréo désactive l'annulation d'écho : on le garde en mono.)
@@ -1511,6 +1520,11 @@ async function openVisio(reponse, { titre = '', etat = null, seanceId = null, re
   state.socket?.emit('presence:reunion', v.salle);
   surveillerMedias(api, { seanceId: ref?.seance_id || null, jeton: prejoin.mode === 'invite' ? prejoin.jeton : null, nom: v.nom, avecJeton: Boolean(v.jwt) });
   organiserPartage(api);
+  api.addListener('toolbarButtonClicked', (e) => {
+    if (e?.key !== 'end-meeting') return;
+    if (visio.seanceId) $('#visio-terminer').click(); // organisateur : même action que « Terminer pour tous »
+    else { toast(t('terminer_reunion_owner')); try { api.executeCommand('hangup'); } catch { closeVisio(); } }
+  });
   // Raccrocher dans la visio, ou être exclu quand l'organisateur termine : retour à Nadwa.
   api.addListener('videoConferenceLeft', () => closeVisio());
   api.addListener('readyToClose', () => closeVisio());
