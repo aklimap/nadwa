@@ -686,3 +686,8 @@ fieldset.participants legend { padding: 0; margin-bottom: 4px; font-weight: 600;
 .pres-statut { max-width: 130px; padding: 4px 6px; border-radius: 8px; border: 1.5px solid var(--ligne-2); background: var(--surface); color: var(--encre); font: inherit; font-size: 12px; font-weight: 700; }
 .pres-statut.present { border-color: #12B76A; color: #067647; } .pres-statut.retard { border-color: #F79009; color: #B54708; }
 .pres-statut.absent { border-color: #F04438; color: #B42318; } .pres-statut.excuse { border-color: #98A2B3; color: #475467; }
+
+/* Bandeau de présentation, comme Teams */
+.visio-partage { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 6px 16px; background: #1D2939; color: #fff; font-size: 14px; font-weight: 600; }
+.visio-partage[hidden] { display: none; }
+.partage-point { width: 10px; height: 10px; border-radius: 50%; background: #F04438; box-shadow: 0 0 0 4px rgba(240,68,56,.25); }

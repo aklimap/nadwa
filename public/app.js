@@ -1466,6 +1466,14 @@ async function openVisio(reponse, { titre = '', etat = null, seanceId = null, re
     userInfo: { displayName: v.nom },
     // Le micro testé avant d'entrer est celui de la visio.
     ...(prejoin.micLabel && v.micro ? { devices: { audioInput: prejoin.micLabel } } : {}),
+    // Disposition comme Teams : contenu partagé en grand, bandeau des participants en dessous.
+    interfaceConfigOverwrite: {
+      VERTICAL_FILMSTRIP: false,
+      FILM_STRIP_MAX_HEIGHT: 120,
+      AUTO_PIN_LATEST_SCREEN_SHARE: 'remote-only',
+      DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
+      TILE_VIEW_MAX_COLUMNS: 5,
+    },
     configOverwrite: {
       startWithAudioMuted: !v.micro,
       startWithVideoMuted: !v.camera,
@@ -1486,32 +1494,23 @@ async function openVisio(reponse, { titre = '', etat = null, seanceId = null, re
       // « Mettre fin à la réunion pour tous » de Jitsi passe par Nadwa : seul l'organisateur
       // peut terminer la réunion (le serveur vidéo donne ce bouton à toute personne avec un jeton).
       buttonsWithNotifyClick: [{ key: 'end-meeting', preventExecution: true }],
-      // ---- Son : éviter l'écho et le larsen (comme Teams) ----
-      // Traitement du micro toujours actif : annulation d'écho, réduction du bruit, gain automatique.
-      // (Le son stéréo désactive l'annulation d'écho : on le garde en mono.)
-      disableAP: false, disableAEC: false, disableNS: false, disableAGC: false, disableHPF: false,
-      audioQuality: { stereo: false },
-      // Prévenir quand le micro capte beaucoup de bruit, ou ne capte rien.
+      // ---- Son, comme Teams / Meet / Zoom ----
+      // Traitement du micro du navigateur toujours actif (annulation d'écho, réduction du bruit,
+      // gain automatique). Le son reste mono : le stéréo désactive l'annulation d'écho.
+      // DTX : quand on ne parle pas, rien n'est envoyé — plus de « fond de bruit » des micros ouverts.
+      // La réduction de bruit par IA (RNNoise) est activée à l'entrée, voir plus bas.
+      disableAP: false, disableAEC: false, disableNS: false, disableAGC: false,
+      audioQuality: { stereo: false, enableOpusDtx: true },
       enableNoisyMicDetection: true,
       enableNoAudioDetection: true,
       // Comme Teams dans les grandes réunions : à partir du 6e participant, on entre micro coupé.
       startAudioMuted: 5,
-      // Pas de sons de Jitsi à chaque arrivée ou départ (Nadwa a déjà son propre signal discret).
       disabledSounds: ['PARTICIPANT_JOINED_SOUND', 'PARTICIPANT_LEFT_SOUND', 'KNOCKING_PARTICIPANT_SOUND', 'REACTION_SOUND', 'RAISE_HAND_SOUND'],
-      // ---- Partage d'écran ----
-      // Pas d'onglet Nadwa dans la liste (effet miroir et son de la réunion renvoyé en boucle),
-      // pas de son de l'ordinateur par défaut (cause n° 1 du larsen pendant un partage).
-      screenShareSettings: {
-        desktopSelfBrowserSurface: 'exclude',
-        desktopSystemAudio: 'exclude',
-        desktopSuppressLocalAudioPlayback: 'include',
-        desktopSurfaceSwitching: 'include',
-        desktopDisplaySurface: 'monitor',
-      },
+      // ---- Partage d'écran, comme Teams ----
+      // Écran partagé seul au centre (pas plusieurs vignettes sur la scène), participants en bandeau.
+      // (Le son de l'ordinateur pendant un partage se règle sur le serveur vidéo : jitsi/custom-config.js.)
       desktopSharingFrameRate: { min: 5, max: 15 },
-      // Partage en grand, participants en bandeau, comme Teams ; pas de vignette géante de soi-même.
-      filmstrip: { disableTopPanel: false, disableStageFilmstrip: false },
-      disableSelfViewSettings: false,
+      filmstrip: { disableStageFilmstrip: true, disableTopPanel: true },
       // Barre d'outils simple, dans l'esprit de Teams.
       toolbarButtons: ['microphone', 'camera', 'desktop', 'chat', 'raisehand', 'reactions', 'participants-pane', 'tileview', 'noisesuppression', 'select-background', 'settings', 'fullscreen', 'hangup'],
       // Grand cours : vidéo limitée à 360p (débit divisé par 2 à 3 pour le serveur et les élèves).
@@ -1755,8 +1754,20 @@ async function renderPresences(conteneur, seanceId, ouvert) {
 function organiserPartage(api) {
   let moi = null;
   let partageAvant = [];
-  api.addListener('videoConferenceJoined', (e) => { moi = e?.id || null; });
-  api.addListener('contentSharingParticipantsChanged', (e) => {
+  const bandeau = $('#visio-partage');
+  const noms = async (ids) => {
+    try {
+      const infos = await api.getRoomsInfo?.();
+      const liste = infos?.rooms?.find((r) => r.isMainRoom)?.participants || [];
+      return ids.map((id) => liste.find((p) => p.id === id)?.displayName || '');
+    } catch { return ids.map(() => ''); }
+  };
+  api.addListener('videoConferenceJoined', (e) => {
+    moi = e?.id || null;
+    // Réduction du bruit par IA (RNNoise), active par défaut comme dans Teams, Meet et Zoom.
+    try { api.executeCommand('setNoiseSuppressionEnabled', { enabled: true }); } catch { /* ancienne version */ }
+  });
+  api.addListener('contentSharingParticipantsChanged', async (e) => {
     const partages = Array.isArray(e?.data) ? e.data : [];
     const autres = partages.filter((id) => id !== moi);
     const nouveau = autres.find((id) => !partageAvant.includes(id));
@@ -1769,9 +1780,22 @@ function organiserPartage(api) {
         else api.executeCommand('pinParticipant', cible);
       } else if (!partages.length) {
         if (typeof api.pinParticipant === 'function') api.pinParticipant(null); else api.executeCommand('pinParticipant', null);
-        api.executeCommand('setTileView', true);
       }
     } catch { /* ancienne version de Jitsi */ }
+    // Bandeau comme Teams : « Vous présentez » (avec Arrêter) ou « Karim présente son écran ».
+    if (!bandeau) return;
+    if (partages.includes(moi)) {
+      bandeau.innerHTML = `<span class="partage-point" aria-hidden="true"></span><span>${esc(t('vous_presentez'))}</span><button type="button" class="btn btn-danger btn-petit" id="partage-arreter">${esc(t('arreter_presentation'))}</button>`;
+      bandeau.hidden = false;
+      $('#partage-arreter').addEventListener('click', () => { try { api.executeCommand('toggleShareScreen'); } catch { /* sans incidence */ } });
+    } else if (autres.length) {
+      const [nom] = await noms([nouveau || autres[autres.length - 1]]);
+      bandeau.innerHTML = `<span class="partage-point" aria-hidden="true"></span><span>${esc(nom ? t('presente_son_ecran', { nom }) : t('ecran_partage'))}</span>`;
+      bandeau.hidden = false;
+    } else {
+      bandeau.hidden = true;
+      bandeau.innerHTML = '';
+    }
   });
 }
 
@@ -1824,6 +1848,7 @@ function closeVisio(rafraichir = true) {
   $('#visio-cadre').innerHTML = '';
   $('#ecran-visio').hidden = true;
   if ($('#visio-alerte')) $('#visio-alerte').hidden = true;
+  if ($('#visio-partage')) { $('#visio-partage').hidden = true; $('#visio-partage').innerHTML = ''; }
   if (api) state.socket?.emit('presence:reunion', false);
   if (rafraichir && api && state.me) {
     loadMeetings();
